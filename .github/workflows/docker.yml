@@ -1,0 +1,18 @@
+# .github/workflows/docker.yml
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [main, staging, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and Push
+        run: |
+          docker build -t myapp:latest --target=runtime --build-arg STAGE=production .
+          docker build -t myapp:staging --target=runtime --build-arg STAGE=staging .
+          docker build -t myapp:dev --target=dev .
