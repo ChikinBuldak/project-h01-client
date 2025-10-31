@@ -1,5 +1,5 @@
 import type { StateCreator, StoreMutatorIdentifier } from "zustand";
-import { isOk, ok, tryCatch } from "../types/utils/result";
+import { isOk, ok, tryCatch } from "../types/result";
 import { parseServerMessage } from "../types/network";
 import { type WorldStore } from './world.stores';
 

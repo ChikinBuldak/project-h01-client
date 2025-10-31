@@ -1,57 +1,65 @@
 import { Entity, System } from "../../types/ecs";
-import { isSome } from "../../types/utils/option";
 import { LocalPlayerTag } from "../components/LocalPlayerTag";
+import { DomMaterial2D } from "../components/DomMaterial2D";
+import { Mesh2D } from "../components/Mesh2D";
 import { Transform } from "../components/Transform";
 
 export class DomRenderSystem extends System {
-    private worldElement: HTMLElement | null = null;
+    private container: HTMLElement | null = null;
     private entityElementMap = new Map<number, HTMLElement>();
-
+    private cameraTarget: Transform | null = null;
+    
     constructor() {
         super();
-        this.worldElement = document.getElementById("world");
+        this.container = document.getElementById("world");
+        if (!this.container)
+            console.error("DomRenderSystem: 'world' container not found!");
     }
 
     update(_entities: Entity[], _deltaTime: number): void { }
 
     render(entities: Entity[], _alpha: number): void {
-        if (!this.worldElement) {
-            this.worldElement = document.getElementById("world");
-            if (!this.worldElement) {
-                console.error("RenderSystem: #world element not found");
-                return;
-            }
+        if (!this.container) return;
+
+        // Camera handle mechanism
+        const playerQuery = this.query(entities, Transform, LocalPlayerTag);
+        if (playerQuery.length > 0) {
+            this.cameraTarget = playerQuery[0][0];
+        }
+        if (this.cameraTarget && this.container.parentElement) {
+            const screenCenterX = this.container.parentElement.clientWidth / 2;
+            const screenCenterY = this.container.parentElement.clientHeight / 2;
+
+            const cameraX = this.cameraTarget.position.x + screenCenterX;
+            const cameraY = this.cameraTarget.position.y + screenCenterY;
+            this.container.style.transform = `transform3d(${cameraX}, ${cameraY}, 0)`;
         }
 
-        const query = this.query(entities, Transform);
+        // Render all entities
+
+
+        const renderableQuery = this.queryWithEntity(entities, Transform, Mesh2D, DomMaterial2D);
         const seenEntities = new Set<number>();
 
-        for (const [transform] of query) {
-            const entity = entities.find(e => {
-                const compOpt = e.getComponent(Transform);
-                if (isSome(compOpt)) {
-                    return compOpt.value === transform;
-                }
-                return false;
-            });
-            if (!entity) continue;
+        for (const [entity, transform, mesh, material] of renderableQuery) {
             seenEntities.add(entity.id);
             let el = this.entityElementMap.get(entity.id);
-            if (!el) {
+            if (!el) { // If no element exists for this entity, create one
                 el = document.createElement("div");
-                el.className = "entity";
-                this.worldElement.appendChild(el);
+                el.className = material.className;
+                el.style.position = 'absolute';
+                el.style.zIndex = `${material.zIndex}`;
+
+                // Apply all initial styles from material
+                Object.assign(el.style, material.styles);
+                this.container.appendChild(el);
                 this.entityElementMap.set(entity.id, el);
-
-                // color the local player differently
-                if (entity.hasComponent(LocalPlayerTag)) {
-                    el.style.backgroundColor = "#007bff";
-                } else {
-                    el.style.backgroundColor = "#28a745";
-                }
             }
-
-            el.style.transform = `translate(${transform.position.x}px, ${transform.position.y}px)`;
+            el.style.width = `${mesh.width}px`;
+            el.style.height = `${mesh.height}px`;
+            const halfWidth = mesh.width / 2;
+            const halfHeight = mesh.height / 2;
+            el.style.transform = `translate3d(${transform.position.x - halfWidth}px, ${transform.position.y - halfHeight}px, 0)`;
         }
         // Clean up elements for entities that no longer exist
         for (const [id, el] of this.entityElementMap.entries()) {

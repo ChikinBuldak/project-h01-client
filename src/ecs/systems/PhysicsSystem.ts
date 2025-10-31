@@ -3,6 +3,7 @@ import { Entity, System } from "../../types/ecs";
 import { RigidBody } from "../components/RigidBody";
 import { Transform } from "../components/Transform";
 import { LocalPlayerTag } from "../components/LocalPlayerTag";
+import { Mesh2D } from "../components/Mesh2D";
 
 export class PhysicsSystem extends System {
     private engine: Matter.Engine;
@@ -12,12 +13,12 @@ export class PhysicsSystem extends System {
         this.engine = Matter.Engine.create();
     }
     update(entities: Entity[], deltaTime: number): void {
-        const query = this.query(entities, RigidBody, Transform, LocalPlayerTag);
+        const query = this.query(entities, RigidBody, Transform, Mesh2D, LocalPlayerTag);
         if (query.isEmpty()) return;
 
-        for (const [rb, transform, _tag] of query) {
+        for (const [rb, transform, mesh, _tag] of query) {
             if (!rb.body) {
-                rb.body = this.createMatterBody(rb, transform);
+                rb.body = this.createMatterBody(rb, transform, mesh);
             }
         }
 
@@ -32,7 +33,7 @@ export class PhysicsSystem extends System {
         }
     }
 
-    private createMatterBody(rb: RigidBody, tf: Transform): Matter.Body {
+    private createMatterBody(rb: RigidBody, tf: Transform, mesh: Mesh2D): Matter.Body {
         const options: Matter.IChamferableBodyDefinition = {
             friction: rb.friction,
             restitution: rb.restitution,
@@ -40,8 +41,7 @@ export class PhysicsSystem extends System {
             isSensor: rb.isSensor,
         };
 
-        // Temporary: use 1x1 box as rigid body
-        return Matter.Bodies.rectangle(tf.position.x, tf.position.y, 1, 1, options);
+        return Matter.Bodies.rectangle(tf.position.x, tf.position.y, mesh.width, mesh.height, options);
     }
 
 }

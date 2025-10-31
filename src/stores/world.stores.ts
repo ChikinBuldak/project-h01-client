@@ -6,7 +6,7 @@ import { Transform } from "../ecs/components/Transform";
 import { NetworkStateBuffer } from "../ecs/components/NetworkStateBuffer";
 import { FIXED_TIMESTEP } from "../hooks/world.hooks";
 import { MovementSystem, ReconciliationSystem } from "../ecs/systems";
-import { isSome } from "../types/utils/option";
+import { isSome } from "../types/option";
 /**
  * The state slice of the Zustand store containing the world instance
  */
@@ -100,7 +100,6 @@ export const useWorldStore = create<WorldStore>()(
     update: (deltaTime) => {
       const { world } = get();
       world.update(deltaTime);
-      // No set() needed here, world is mutated
     },
 
     render: (alpha) => {
@@ -108,10 +107,9 @@ export const useWorldStore = create<WorldStore>()(
       if (world.render) {
         world.render(alpha);
       }
-      // No set() needed here
     },
 
-    // --- WebSocket Actions (defined in middleware) ---
+    // WebSocket Actions (defined in middleware)
     // These are stubbed here to satisfy the type,
     // the middleware provides the actual implementation.
     connect: (_url) => console.warn('connect() called before middleware init'),

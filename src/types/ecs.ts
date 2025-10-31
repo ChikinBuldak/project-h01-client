@@ -1,4 +1,4 @@
-import { isSome, none, some, type Option } from "./utils/option";
+import { isSome, none, some, type Option } from "./option";
 
 /**
  * Component, If you want to define a component, you are required to implement this interface
@@ -80,6 +80,35 @@ export abstract class System {
             matches.push(components as { [K in keyof C]: ComponentInstance<C[K]> });
         }
 
+        return matches;
+    }
+
+    protected queryWithEntity<C extends ReadonlyArray<ComponentCtor<Component>>>( 
+        entities: Entity[],
+        ...componentTypes: C 
+    ): Array<[Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]> { 
+        
+        const matches: Array<[Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]> = [];
+
+        for (const entity of entities) {
+            // Skip if entity doesn't have all required components
+            if (!componentTypes.every((ctor) => entity.hasComponent(ctor))) continue;
+
+            // Collect components
+            const components = componentTypes.map(
+                (ctor) => {
+                    const compOpt = entity.getComponent(ctor);
+                    if (isSome(compOpt)) {
+                         return compOpt.value;
+                    }
+                    // This should not be reached if hasComponent check is correct, but good practice
+                    throw new Error(`Missing component ${ctor.name} in queryWithEntity after check`);
+                }
+            );
+            
+            // Add the entity to the start of the tuple
+            matches.push([entity, ...components] as unknown as [Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]);
+        }
         return matches;
     }
 

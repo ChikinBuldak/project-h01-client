@@ -96,6 +96,9 @@ export const unwrapOr = <T, E>(result: Result<T, E>, defaultValue: T): T => {
     return defaultValue;
 };
 
+export const unwrapOrElse = <T, E>(r: Result<T, E>, fn: (e: E) => T): T =>
+  isOk(r) ? r.value : fn(r.error);
+
 export const matchOk = <T, E>(result: Result<T, E>): { value: T } | undefined => {
     if (isOk(result)) {
         return { value: result.value };
@@ -134,6 +137,18 @@ export function tryCatch<T, E = Error>(
     }
 }
 
+export const tryCatchAsync = async <T, E = unknown>(
+  fn: () => Promise<T>,
+  onError?: (error: unknown) => E
+): Promise<Result<T, E>> => {
+  try {
+    const val = await fn();
+    return ok(val);
+  } catch (e) {
+    return err(onError ? onError(e) : (e as E));
+  }
+};
+
 /**
  * Executes a function based on the state of the Result (Ok or Err).
  * This is the primary way to consume a Result safely in functional TypeScript.
@@ -156,3 +171,36 @@ export const match = <T, E, R>(
             return handlers.err(result.error);
     }
 };
+
+export const mapAsync = async <T, U, E>(
+    r: Result<T, E>,
+    fn: (t: T) => Promise<U>
+): Promise<Result<U, E>> => {
+    if (isOk(r)) {
+        const newValue = await fn(r.value);
+        return ok(newValue);
+    }
+    return r;
+}
+
+export const mapErrAsync = async <T, E, F>(
+    r: Result<T,E>,
+    fn: (e: E) => Promise<F>
+): Promise<Result<T, F>> => {
+    if (isErr(r)) {
+        const newError = await fn(r.error);
+        return err(newError);
+    }
+    return r;
+}
+
+export const andThenAsync = async <T, U, E>(
+  r: Result<T, E>,
+  fn: (t: T) => Promise<Result<U, E>>
+): Promise<Result<U, E>> => {
+  if (isOk(r)) {
+    return fn(r.value);
+  }
+  return r;
+};
+
