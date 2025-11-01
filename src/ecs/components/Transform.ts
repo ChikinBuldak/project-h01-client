@@ -1,5 +1,5 @@
 import type { Component } from "../../types/ecs";
-import type { TransformState } from "../../types/network";
+import type { PlayerStateMessage, TransformState } from '../../types/network';
 
 export interface Position {
     x: number,
@@ -37,5 +37,8 @@ export class Transform implements Component {
         const y = start.position.y + (end.position.y - start.position.y) * alpha;
         return new Transform(x, y);
     }
+}
 
+export function intoTransform(state: PlayerStateMessage) {
+    return new Transform(state.state.transform.position.x, state.state.transform.position.y);
 }

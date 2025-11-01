@@ -88,6 +88,8 @@ export class CharacterFactory {
                 .addComponent(new GroundCheckRay(height / 2 + 2))
                 .addComponent(new PlayerState())
                 .addComponent(new PredictionHistory())
+        } else {
+            entity.addComponent(new NetworkStateBuffer());
         }
         return entity;
     };

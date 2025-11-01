@@ -1,46 +1,79 @@
-import { Entity, System } from "../../types/ecs";
-import type { TransformState } from "../../types/network";
+import Matter from "matter-js";
+import { Entity, System, World } from "../../types/ecs";
+import type { PlayerStateMessage, TransformState } from "../../types/network";
+import { PlayerState, RigidBody } from "../components";
 import { LocalPlayerTag, PredictionHistory } from "../components/LocalPlayerTag";
 import { Transform } from "../components/Transform";
-import type { MovementSystem } from "./MovementSystem";
+import { PlayerMovementSystem } from "./PlayerMovementSystem";
+import { isNone, isSome } from "../../types/option";
 
-const EPSILON = 0.01;
+const POSITION_EPSILON = 1.0;
+const VELOCITY_EPSILON = 0.1
 
 export class ReconciliationSystem extends System {
-    update(_entities: Entity[], _deltaTime: number): void { }
+    update(_world: World): void { }
 
-    public onServerStateReceived(entities: Entity[],
-        serverState: { tick: number, state: TransformState },
-        movementSystem: MovementSystem,
-        fixedDeltaTime: number
+    public onServerStateReceived(world: World,
+        serverMessage: PlayerStateMessage
 
     ) {
-        const localPlayerQuery = this.query(entities, LocalPlayerTag, Transform, PredictionHistory);
+        const localPlayerQuery = world.queryWithFilter(
+            [RigidBody, PlayerState, PredictionHistory],
+            [LocalPlayerTag],
+        );
         if (localPlayerQuery.length === 0) return;
-        const [_player, transform, history] = localPlayerQuery[0];
+        const [rb, state, history] = localPlayerQuery[0];
+        const { tick, state: serverState } = serverMessage;
 
-        const clientState = history.stateHistory.find((s) => s.tick === serverState.tick);
-        if (!clientState) return;
+        const clientState = history.stateHistory.find(s => s.tick === tick);
 
-        const error = Math.abs(clientState.state.position.x - serverState.state.position.x) 
-        + Math.abs(clientState.state.position.y - serverState.state.position.y);
-        if (error > EPSILON) {
-            transform.position.x = serverState.state.position.x;
-            transform.position.y = serverState.state.position.y;
+        // Prune old history. All inputs/states before this are now confirmed.
+        // We do this *regardless* of error to keep the buffers clean.
+        history.pendingInputs = history.pendingInputs.filter(i => i.tick > tick);
+        history.stateHistory = history.stateHistory.filter(s => s.tick > tick);
+        if (!clientState) {
+            // We have no local state to compare against. This can happen
+            // on first join or after heavy packet loss.
+            // We must accept the server's state as truth.
+            Matter.Body.setPosition(rb.body, serverState.transform.position);
+            Matter.Body.setVelocity(rb.body, serverState.velocity);
+            state.isGrounded = serverState.isGrounded;
+            return;
+        }
 
-            // Remove acknowledged tick from history
-            history.stateHistory = history.stateHistory.filter((s) => s.tick > serverState.tick);
-            history.pendingInputs = history.pendingInputs.filter((i) => i.tick > serverState.tick);
+        // calculate error
+        const posError = Matter.Vector.magnitude(
+            Matter.Vector.sub(clientState.state.position, serverState.transform.position)
+        );
+        const velError = Matter.Vector.magnitude(
+            Matter.Vector.sub(clientState.state.velocity, serverState.velocity)
+        );
 
-            for (const { input } of history.pendingInputs) {
-                movementSystem.applyInput(transform, input, fixedDeltaTime);
-                history.stateHistory.push({ tick: input.tick, state: transform.clone() })
-            }
+        if (posError < POSITION_EPSILON && velError < VELOCITY_EPSILON) {
+            // No error. We predicted correctly! Do nothing.
+            return;
+        }
 
-            history.stateHistory.sort((a, b) => a.tick - b.tick);
-        } else {
-            history.stateHistory = history.stateHistory.filter(s => s.tick > serverState.tick);
-            history.pendingInputs = history.pendingInputs.filter(i => i.tick > serverState.tick);
+        console.warn(`Mis-prediction at tick ${tick}. Reconciling...`);
+
+        // a. Get the "predictor" system
+        const predictor = world.getSystem(PlayerMovementSystem);
+        if (isNone(predictor)) return;
+
+        // b. Snap the client's "live" body to the server's authoritative state
+        Matter.Body.setPosition(rb.body, serverState.transform.position);
+        Matter.Body.setVelocity(rb.body, serverState.velocity);
+        state.isGrounded = serverState.isGrounded;
+
+        // c. Re-play all pending inputs *on top of* the corrected state
+        //    (These are inputs the server hasn't seen yet)
+        for (const { tick: inputTick, input } of history.pendingInputs) {
+            // Run the *exact same* prediction logic
+            predictor.value.applyInput(rb, state, input);
+
+            // Save the *new, re-predicted* state to history
+            const replayedState = predictor.value.cloneState(rb, state);
+            history.stateHistory.push({ tick: inputTick, state: replayedState });
         }
     }
 

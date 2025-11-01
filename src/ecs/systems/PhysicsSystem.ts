@@ -1,13 +1,14 @@
 import Matter from "matter-js";
-import { Entity, System } from "../../types/ecs";
+import { Entity, System, World } from "../../types/ecs";
 import { RigidBody } from "../components/RigidBody";
 import { Transform } from "../components/Transform";
 import { LocalPlayerTag } from "../components/LocalPlayerTag";
 import { Mesh2D } from "../components/Mesh2D";
 import { PlayerState } from '../components/PlayerState';
 import { Collider } from "../components";
-import { isSome } from "../../types/option";
+import { isNone, isSome } from "../../types/option";
 import { GroundCheckRay } from "../components/GroundCheckRay";
+import { Time } from "../resources/Time";
 
 export class PhysicsSystem extends System {
     private engine: Matter.Engine;
@@ -67,8 +68,11 @@ export class PhysicsSystem extends System {
         })
     }
 
-    update(entities: Entity[], deltaTime: number): void {
-        const newBodiesQuery = this.queryWithEntity(entities, RigidBody);
+    update(world: World): void {
+        const time = world.getResource(Time);
+        if(isNone(time)) return;
+        const deltaTime = time.value.fixedDeltaTime
+        const newBodiesQuery = world.queryWithEntity(RigidBody);
         const allBodies: Matter.Body[] = [];
         for (const [entity, rb] of newBodiesQuery) {
             allBodies.push(rb.body);
@@ -83,32 +87,29 @@ export class PhysicsSystem extends System {
         Matter.Engine.update(this.engine, deltaTime);
 
         // Perform ground checking
-        const groundCheckingQuery = this.query(entities, RigidBody, PlayerState, GroundCheckRay);
+        const groundCheckingQuery = world.query(RigidBody, PlayerState, GroundCheckRay);
         for (const [rb, playerState, groundCheck] of groundCheckingQuery) {
             const startPoint = rb.body.position;
             const endPoint = {
-                x: rb.body.position.x,
-                y: rb.body.position.y + groundCheck.rayLength
+                x: startPoint.x,
+                y: startPoint.y + groundCheck.rayLength
             }
 
             // cast a ray downwards
             const hits = Matter.Query.ray(allBodies, startPoint, endPoint);
             let hitGround = false;
-            if (hits.length > 0) {
-                for (const hit of hits) {
-                    if (hit.bodyA.id !== rb.body.id && hit.bodyB.id !== rb.body.id) {
-                        hitGround = true;
-                        break;
-                    }
+            for (const hit of hits) {
+                if (hit.bodyA.id !== rb.body.id && hit.bodyB.id !== rb.body.id) {
+                    hitGround = true;
+                    break;
                 }
             }
-
             playerState.isGrounded = hitGround;
             groundCheck.hit = hitGround;
         }
 
         // Sync transforms back to ECS
-        const syncQuery = this.query(entities, RigidBody, Transform);
+        const syncQuery = world.query(RigidBody, Transform);
         for (const [rb, transform] of syncQuery) {
             const body = rb.body;
             if (!body) continue;

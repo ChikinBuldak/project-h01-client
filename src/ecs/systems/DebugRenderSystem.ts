@@ -1,4 +1,4 @@
-import { Entity, System } from "../../types/ecs";
+import { Entity, System, World } from "../../types/ecs";
 import { Transform } from "../components/Transform";
 import { DebugCollider, DebugPhysicsState } from "../components/DebugCollider";
 // Import the new tag
@@ -18,13 +18,13 @@ export class DebugRenderSystem extends System {
         this.container = document.getElementById('world');
     }
 
-    update(_entities: Entity[], _deltaTime: number): void {}
+    update(_world: World): void {}
 
-    render(entities: Entity[], _alpha: number): void {
+    render(world: World): void {
         if (!this.container) return;
 
         // Query for entities that have both a Transform and a DebugCollider
-        const query = this.queryWithEntity(entities, Transform, DebugCollider);
+        const query = world.queryWithEntity(Transform, DebugCollider);
         const seen = new Set<number>();
 
         for (const [entity, transform, collider] of query) {
@@ -44,17 +44,17 @@ export class DebugRenderSystem extends System {
 
             // --- APPLY STATE ---
             
-            // 1. Set Position: Use the *smoothly interpolated* transform
+            // Set Position: Use the *smoothly interpolated* transform
             // We adjust position by -width/2 and -height/2 to center the box
             const halfWidth = collider.shape.width / 2;
             const halfHeight = collider.shape.height / 2;
             el.style.transform = `translate3d(${transform.position.x - halfWidth}px, ${transform.position.y - halfHeight}px, 0)`;
             
-            // 2. Set Size: Snap to the *authoritative* collider shape
+            // Set Size: Snap to the *authoritative* collider shape
             el.style.width = `${collider.shape.width}px`;
             el.style.height = `${collider.shape.height}px`;
 
-            // 3. Set Color (based on entity type)
+            // Set Color (based on entity type)
             if (entity.hasComponent(StaticMapObjectTag)) {
                 // Style for static map objects
                 el.style.borderColor = 'rgba(255, 255, 255, 0.8)'; // White

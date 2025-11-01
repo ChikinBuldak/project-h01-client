@@ -1,44 +1,49 @@
 import { useWorldStore } from "../../stores/world.stores";
-import { Entity, System } from "../../types/ecs";
-import { InputManager, type Input } from "../../types/input";
-import type { PlayerInput } from "../../types/network";
+import { Entity, System, World } from "../../types/ecs";
+import { InputManager, KeyCode} from "../../types/input";
+import type { Input, PlayerInput } from "../../types/network";
+import { isSome, unwrapOpt } from "../../types/option";
 import { LocalPlayerTag, PredictionHistory } from "../components/LocalPlayerTag";
+import { NetworkResource } from "../resources/NetworkResource";
 
 export class InputSystem extends System {
     private currentTick = 0;
-    private wasJumpPressed = false;
     
-    update(entities: Entity[], _deltaTime: number): void {
-        const {sendMessage} = useWorldStore.getState();
-        const localPlayerQuery = this.query(entities, LocalPlayerTag, PredictionHistory);
-        // console.log(localPlayerQuery);
-        if (localPlayerQuery.length === 0) return;
-        const [_player, history] = localPlayerQuery[0];
-
+    update(world: World): void {
         const inputPayload: Input = {
             dx: 0,
             dy: 0,
             tick: this.currentTick,
             jump: false,
+            dodge: false
         }
 
-        if (InputManager.isDown("a")) inputPayload.dx = -1;
-        if (InputManager.isDown("d")) inputPayload.dx = 1;
+        const localPlayerQuery = world.queryWithFilter([PredictionHistory],[LocalPlayerTag]);
+        if (localPlayerQuery.length === 0) return;
+        const [history] = localPlayerQuery[0];
         
-        const isJumpPressed = InputManager.isDown(" ") || InputManager.isDown("w");
-
-        if (isJumpPressed && !this.wasJumpPressed) {
+        if (InputManager.isDown(KeyCode.A)) inputPayload.dx = -1;
+        if (InputManager.isDown(KeyCode.D)) inputPayload.dx = 1;
+        
+        const isJumpPressed = InputManager.isDown(KeyCode.Space);
+        
+        if (isJumpPressed) {
             inputPayload.jump = true;
         }
-
-        this.wasJumpPressed = isJumpPressed;
-
+        if (InputManager.isDown(KeyCode.Shift)) {
+            inputPayload.dodge = true;
+        }
+        
         history.pendingInputs.push({ tick: this.currentTick, input: inputPayload });
-        const message: PlayerInput = {
-            type: 'playerInput',
-            payload: inputPayload
-        };
-        sendMessage(message);
+        // send input message to the server
+        const net = world.getResource(NetworkResource);
+        if (isSome(net)) {
+            const message: PlayerInput = {
+                type: 'playerInput',
+                payload: inputPayload
+            };
+            unwrapOpt(net).sendMessage(message);
+        }
         this.currentTick++;
     }
 }

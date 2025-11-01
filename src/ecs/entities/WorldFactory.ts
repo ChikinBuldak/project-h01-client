@@ -1,6 +1,6 @@
 import Matter from "matter-js";
 import { Entity } from "../../types/ecs";
-import { DomMaterial, Mesh2D, RigidBody, Transform } from "../components";
+import { DomMaterial, Mesh2D, RigidBody, StaticMapObjectTag, Transform } from "../components";
 import { Collider } from "../components/Collider";
 
 interface createGroundProps {
@@ -39,7 +39,8 @@ export class WorldFactory {
                     },
                     zIndex: 1
                 }
-            ));
+            ))
+            .addComponent(new StaticMapObjectTag());
         return entity;
     }
 }
