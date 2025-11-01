@@ -1,7 +1,8 @@
 export interface Input {
     dx: number,
     dy: number,
-    tick: number
+    tick: number,
+    jump: boolean,
 }
 
 export class InputManager {

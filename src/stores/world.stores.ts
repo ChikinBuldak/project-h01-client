@@ -13,7 +13,7 @@ import { isSome } from "../types/option";
 interface WorldState {
     /** The single instance of the ECS World */
     world: World;
-    /** The last time the world was updated, for delta time calculation */
+    /** The map for all entity in the server*/
     serverEntityMap: Map<string, Entity>;
 }
 
@@ -51,13 +51,11 @@ const initialWorld = new World();
 export const useWorldStore = create<WorldStore>()(
   // Apply the websocket middleware
   wsMiddleware((set, get) => ({
-    // --- Initial State ---
     world: initialWorld,
     serverEntityMap: new Map(),
     socket: null,
     isConnected: false,
 
-    // --- World Actions ---
     initializeWorld: () => {
       set({
         world: new World(),
@@ -94,7 +92,7 @@ export const useWorldStore = create<WorldStore>()(
     addSystem: (system) => {
       const { world } = get();
       world.addSystem(system);
-      set({ world }); // Update state
+      set({ world });
     },
 
     update: (deltaTime) => {
@@ -123,7 +121,7 @@ export const useWorldStore = create<WorldStore>()(
 
       switch (message.type) {
         case 'reconciliation': {
-          // Message for our local player
+          // Message for local player
           const data = message.payload;
           const reconSystem = world.getSystem(ReconciliationSystem);
           const moveSystem = world.getSystem(MovementSystem);
@@ -166,8 +164,6 @@ export const useWorldStore = create<WorldStore>()(
           const newPlayer = new Entity();
           newPlayer.addComponent(new Transform(state.position.x, state.position.y));
           newPlayer.addComponent(new NetworkStateBuffer());
-          
-          // Use the addEntity action to add it to the world AND the map
           get().addEntity(newPlayer, id);
           break;
         }

@@ -1,6 +1,6 @@
 import { Entity, System } from "../../types/ecs";
 import { LocalPlayerTag } from "../components/LocalPlayerTag";
-import { DomMaterial2D } from "../components/DomMaterial2D";
+import { DomMaterial } from "../components/DomMaterial";
 import { Mesh2D } from "../components/Mesh2D";
 import { Transform } from "../components/Transform";
 
@@ -38,7 +38,7 @@ export class DomRenderSystem extends System {
         // Render all entities
 
 
-        const renderableQuery = this.queryWithEntity(entities, Transform, Mesh2D, DomMaterial2D);
+        const renderableQuery = this.queryWithEntity(entities, Transform, Mesh2D, DomMaterial);
         const seenEntities = new Set<number>();
 
         for (const [entity, transform, mesh, material] of renderableQuery) {

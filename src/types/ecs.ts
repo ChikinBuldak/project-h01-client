@@ -83,6 +83,13 @@ export abstract class System {
         return matches;
     }
 
+    /**
+     * Queries all entities that have *all* required components.
+     * Work the same as {@link query}. However, {@link queryWithEntity} also returns the {@link Entity} 
+     * @param entities 
+     * @param componentTypes 
+     * @returns 
+     */
     protected queryWithEntity<C extends ReadonlyArray<ComponentCtor<Component>>>( 
         entities: Entity[],
         ...componentTypes: C 
@@ -101,12 +108,10 @@ export abstract class System {
                     if (isSome(compOpt)) {
                          return compOpt.value;
                     }
-                    // This should not be reached if hasComponent check is correct, but good practice
                     throw new Error(`Missing component ${ctor.name} in queryWithEntity after check`);
                 }
             );
             
-            // Add the entity to the start of the tuple
             matches.push([entity, ...components] as unknown as [Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]);
         }
         return matches;

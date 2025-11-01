@@ -3,12 +3,15 @@ import './App.css'
 import { useGameLoop } from './hooks/world.hooks'
 import { useWorldStore } from './stores/world.stores'
 import { DomRenderSystem, InputSystem, InterpolationSystem, MovementSystem, ReconciliationSystem } from './ecs/systems'
-import { Transform, NetworkStateBuffer } from './ecs/components'
+import { Transform, NetworkStateBuffer, Mesh2D, DomMaterial } from './ecs/components'
 import { InputManager } from './types/input'
 import { isSome } from './types/option'
 import { DiscordSDK, type IDiscordSDK } from '@discord/embedded-app-sdk'
 import { isErr, tryCatchAsync } from './types/result'
 import { CharacterFactory } from './ecs/entities/CharacterFactory'
+import { PhysicsSystem } from './ecs/systems/PhysicsSystem'
+import { WorldFactory } from './ecs/entities/WorldFactory'
+import { Entity } from './types/ecs'
 
 let discordSdk: IDiscordSDK | null = null;
 
@@ -68,7 +71,6 @@ function App() {
           access_token: code,
         })
       );
-
       if (isErr(authenticationResult)) {
         console.error("Error authenticating with Discord server:", authenticationResult.error);
         return;
@@ -118,20 +120,35 @@ function App() {
     addSystem(new ReconciliationSystem());
     addSystem(new InterpolationSystem());
     addSystem(new DomRenderSystem());
+    addSystem(new PhysicsSystem());
 
-    const localPlayer = CharacterFactory.createRed({
+    const playerWidth = 20;
+    const playerHeight = 20;
+    const localPlayer = CharacterFactory.createBlue({
       xPos: 50,
       yPos: 50,
+      width: playerWidth,
+      height: playerHeight,
       isPlayer: true
     })
-
-    const remotePlayer = CharacterFactory.createBlue({
-      xPos: 150,
-      yPos: 50,
+    const remotePlayer = new Entity()
+        .addComponent(new Transform(150, 50))
+        .addComponent(new NetworkStateBuffer())
+        .addComponent(new Mesh2D(playerWidth, playerHeight))
+        .addComponent(new DomMaterial({ 
+            className: 'remote-player',
+            styles: { backgroundColor: 'firebrick' } 
+        }));
+    const ground = WorldFactory.createGround({
+      x: 400,
+      y: 500,
+      width: 800,
+      height: 50
     })
 
     addEntity(remotePlayer);
     addEntity(localPlayer);
+    addEntity(ground);
 
     let intervalId: number | undefined = undefined;
     const netBuffer = remotePlayer.getComponent(NetworkStateBuffer);

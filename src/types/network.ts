@@ -3,7 +3,7 @@ import type { Transform } from "../ecs/components/Transform";
 
 
 export type TransformState = Pick<Transform,  'position' | 'rotation'>;
-// --- BASE SCHEMAS ---
+// === BASE SCHEMAS ===
 const zTransform: z.ZodType<Pick<Transform,  'position' | 'rotation'>> = z.object({
   position: z.object({
     x: z.number(),
@@ -13,7 +13,7 @@ const zTransform: z.ZodType<Pick<Transform,  'position' | 'rotation'>> = z.objec
   
 });
 
-// --- CLIENT-TO-SERVER MESSAGES ---
+// === CLIENT-TO-SERVER MESSAGES ===
 
 export const zPlayerInput = z.object({
   type: z.literal("playerInput"),
@@ -21,13 +21,13 @@ export const zPlayerInput = z.object({
     tick: z.number(),
     dx: z.number(),
     dy: z.number(),
+    jump: z.boolean(),
   }),
 });
 
 // Union schema for all possible client messages
 export const zClientMessage = z.discriminatedUnion("type", [
   zPlayerInput,
-  // Add other client messages here, e.g., zRequestChatMessage
 ]);
 
 // Infer TypeScript types from Zod schemas
@@ -35,7 +35,7 @@ export type PlayerInput = z.infer<typeof zPlayerInput>;
 export type ClientMessage = z.infer<typeof zClientMessage>;
 
 
-// --- SERVER-TO-CLIENT MESSAGES ---
+// === SERVER-TO-CLIENT MESSAGES ===
 
 const zPlayerJoined = z.object({
   type: z.literal("playerJoined"),
@@ -79,7 +79,6 @@ export const zServerMessage = z.discriminatedUnion("type", [
   zPlayerLeft,
   zWorldState,
   zReconciliation,
-  // Add other server messages here
 ]);
 
 // Infer TypeScript types from Zod schemas
@@ -99,10 +98,8 @@ export function parseServerMessage(data: unknown): ServerMessage | null {
   const result = zServerMessage.safeParse(data);
 
   if (result.success) {
-    // Return the strongly-typed data
     return result.data;
   } else {
-    // Log the detailed validation errors
     console.error("[WS Parser] Invalid message received:", result.error.issues);
     return null;
   }

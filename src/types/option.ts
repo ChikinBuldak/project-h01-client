@@ -33,3 +33,15 @@ export const andThen = <T, U>(
   opt: Option<T>,
   fn: (t: T) => Option<U>
 ): Option<U> => (isSome(opt) ? fn(opt.value) : none);
+
+export function safeCall<T>(fn: () => T): T | null {
+  try {
+    const result = fn();
+    return result === undefined ? null : result;
+  } catch {
+    return null;
+  }
+}
+
+export type Nullable<T> = T | null;
+export type Undefinable<T> = T | undefined;

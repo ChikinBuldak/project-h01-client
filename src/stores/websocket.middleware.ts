@@ -1,5 +1,5 @@
 import type { StateCreator, StoreMutatorIdentifier } from "zustand";
-import { isOk, ok, tryCatch } from "../types/result";
+import { isErr, isOk, ok, tryCatch } from "../types/result";
 import { parseServerMessage } from "../types/network";
 import { type WorldStore } from './world.stores';
 
@@ -25,8 +25,8 @@ export type WebSocketAction = {
     sendMessage: (message: any) => void;
 };
 
-// Helper type to add WebSocket functionality to your store
 export type WithWebSocket<T> = T & WebSocketState & WebSocketAction;
+
 /**
  * WebSocket middleware implementation
  */
@@ -74,9 +74,8 @@ export const wsMiddleware: WSMiddleware = <
         const data = parseServerMessage(jsonResult.value);
 
         if (data) {
-            // Check if the store has the handler function
             if (get().handleWSMessage && typeof get().handleWSMessage === 'function') {
-                get().handleWSMessage(data); // Pass the strongly-typed data
+                get().handleWSMessage(data);
             }
         }
     };
@@ -136,7 +135,7 @@ export const wsMiddleware: WSMiddleware = <
         const socket = get().socket;
 
         if (!socket) {
-            console.warn('[WS] Cannot send message: not connected');
+            // console.warn('[WS] Cannot send message: not connected');
             return;
         }
 
@@ -153,7 +152,7 @@ export const wsMiddleware: WSMiddleware = <
             return ok(undefined);
         });
 
-        if (!isOk(result)) {
+        if (isErr(result)) {
             console.error('[WS] Failed to send message:', result.error);
         }
     };
