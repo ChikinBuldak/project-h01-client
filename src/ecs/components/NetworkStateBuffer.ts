@@ -1,11 +1,11 @@
 import type { Component } from "../../types/ecs";
-import type { PlayerStateMessage, TransformState} from "../../types/network";
+import type { PlayerPhysicsState, PlayerStateMessage, TransformState} from "../../types/network";
 
 export class NetworkStateBuffer implements Component {
-    public buffer: {tick: number, state: TransformState}[] = [];
+    public buffer: {tick: number, state: PlayerPhysicsState}[] = [];
     public bufferDelay: number = 100;
 
-    public addState(tick: number, state: TransformState) {
+    public addState(tick: number, state: PlayerPhysicsState) {
         this.buffer.push({tick, state});
         // Keep buffer sorted by tick
         this.buffer.sort((a, b) => a.tick - b.tick);

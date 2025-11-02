@@ -1,9 +1,9 @@
-import { Entity, System, World } from "../../types/ecs";
+import { Entity, type System, World } from "../../types/ecs";
 import { isNone, isSome, unwrapOpt } from "../../types/option";
 import { NetworkStateBuffer } from "../components";
 import { DebugCollider, DebugPhysicsState } from "../components/DebugCollider";
 import { StaticMapObjectTag } from "../components/StaticMapObjectTag";
-import { WorldFactory } from "../entities/WorldFactory";
+import { WorldFactory } from "../factories/WorldFactory";
 import { NetworkResource } from "../resources/NetworkResource";
 import { ReconciliationSystem } from "./ReconciliationSystem";
 
@@ -11,7 +11,7 @@ import { ReconciliationSystem } from "./ReconciliationSystem";
  * A Bevy-style "system" that runs on every update tick
  * to process incoming messages from the NetworkResource.
  */
-export class NetworkReceiveSystem extends System {
+export class NetworkReceiveSystem implements System {
     /**
      * Maps server string IDs to client numeric entity IDs.
      * This is an O(1) lookup map for performance.
@@ -78,7 +78,7 @@ export class NetworkReceiveSystem extends System {
                     // 1. Handle Transform (for interpolation)
                     const netBuffer = entity.getComponent(NetworkStateBuffer);
                     if (isSome(netBuffer)) {
-                        netBuffer.value.addState(message.tick, message.state.transform);
+                        netBuffer.value.addState(message.tick, message.state);
                     }
                     break;
                 }
@@ -98,7 +98,8 @@ export class NetworkReceiveSystem extends System {
 
                     // Create new map entities
                     for (const obj of message.objects) {
-                        const ground = WorldFactory.createGround({
+                        const factory = new WorldFactory();
+                        const ground = factory.createGround({
                             x: obj.position.x,
                             y: obj.position.y,
                             width: obj.width,

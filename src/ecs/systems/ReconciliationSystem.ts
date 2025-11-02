@@ -1,27 +1,29 @@
 import Matter from "matter-js";
-import { Entity, System, World } from "../../types/ecs";
+import { Entity, type System, World } from "../../types/ecs";
 import type { PlayerStateMessage, TransformState } from "../../types/network";
 import { PlayerState, RigidBody } from "../components";
 import { LocalPlayerTag, PredictionHistory } from "../components/LocalPlayerTag";
-import { Transform } from "../components/Transform";
 import { PlayerMovementSystem } from "./PlayerMovementSystem";
-import { isNone, isSome } from "../../types/option";
+import { isNone, isSome, unwrapOpt } from "../../types/option";
+import { Time } from "../resources";
 
 const POSITION_EPSILON = 1.0;
 const VELOCITY_EPSILON = 0.1
 
-export class ReconciliationSystem extends System {
+export class ReconciliationSystem implements System {
     update(_world: World): void { }
 
     public onServerStateReceived(world: World,
         serverMessage: PlayerStateMessage
 
     ) {
+        const time = unwrapOpt(world.getResource(Time))
         const localPlayerQuery = world.queryWithFilter(
             [RigidBody, PlayerState, PredictionHistory],
             [LocalPlayerTag],
         );
-        if (localPlayerQuery.length === 0) return;
+        const predictor = world.getSystem(PlayerMovementSystem);
+        if (localPlayerQuery.length === 0 || !time || isNone(predictor)) return;
         const [rb, state, history] = localPlayerQuery[0];
         const { tick, state: serverState } = serverMessage;
 
@@ -56,17 +58,13 @@ export class ReconciliationSystem extends System {
 
         console.warn(`Mis-prediction at tick ${tick}. Reconciling...`);
 
-        // a. Get the "predictor" system
-        const predictor = world.getSystem(PlayerMovementSystem);
-        if (isNone(predictor)) return;
-
-        // b. Snap the client's "live" body to the server's authoritative state
+        // Snap the client's "live" body to the server's authoritative state
         Matter.Body.setPosition(rb.body, serverState.transform.position);
         Matter.Body.setVelocity(rb.body, serverState.velocity);
         state.isGrounded = serverState.isGrounded;
 
-        // c. Re-play all pending inputs *on top of* the corrected state
-        //    (These are inputs the server hasn't seen yet)
+        // Re-play all pending inputs *on top of* the corrected state
+        // (These are inputs the server hasn't seen yet)
         for (const { tick: inputTick, input } of history.pendingInputs) {
             // Run the *exact same* prediction logic
             predictor.value.applyInput(rb, state, input);

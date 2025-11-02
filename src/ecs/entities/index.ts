@@ -1,2 +1,2 @@
-export * from './CharacterFactory';
-export * from './WorldFactory';
+export * from '../factories/CharacterFactory';
+export * from '../factories/WorldFactory';

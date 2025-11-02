@@ -7,10 +7,20 @@ export type RigidBodyType = "static" | "dynamic"
 
 export class RigidBody implements Component {
   body: Matter.Body;
+  /**
+   * Label whether this body is already added to Matter.js physics world
+   */
+  isAdded: boolean;
 
-  public constructor(factory: () => Matter.Body) {
-    this.body = factory();
+  public constructor(factory: (() => Matter.Body)  | Matter.Body) {
+    if (typeof factory === "function") {
+      this.body = factory();
+    } else {
+      this.body = factory;
+    }
+    this.isAdded = false;
   }
+
 
   /**
  * Creates a new RigidBody by calling a Matter.js body factory function.
@@ -20,8 +30,12 @@ export class RigidBody implements Component {
  *   Matter.Bodies.rectangle(0, 0, 50, 50, { isStatic: false })
  * );
  */
-  static create(factory: () => Matter.Body): RigidBody {
+  static createFromFn(factory: () => Matter.Body): RigidBody {
     return new RigidBody(factory);
+  }
+
+  static createFromBody(body: Matter.Body): RigidBody {
+    return new RigidBody(body);
   }
 
   get type(): Nullable<"static" | "dynamic"> {

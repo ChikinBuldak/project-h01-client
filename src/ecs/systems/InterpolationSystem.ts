@@ -1,11 +1,11 @@
-import { Entity, System, World } from "../../types/ecs";
-import type { PlayerStateMessage, TransformState } from "../../types/network";
+import { Entity, type System, World } from "../../types/ecs";
+import type { PlayerPhysicsState, PlayerStateMessage, TransformState } from "../../types/network";
 import { LocalPlayerTag } from "../components";
 import { NetworkStateBuffer } from "../components/NetworkStateBuffer";
 import { intoTransform, Transform } from "../components/Transform";
-type Snapshot = { tick: number, state: TransformState };
+type Snapshot = { tick: number, state: PlayerPhysicsState };
 
-export class InterpolationSystem extends System {
+export class InterpolationSystem implements System {
 
     public update(world: World): void {
         // Interpolation logic runs in the render loop
@@ -35,8 +35,8 @@ export class InterpolationSystem extends System {
             if (!prevState || !nextState) {
                 const latestState = nextState || prevState;
                 if (latestState) {
-                    transform.position.x = latestState.state.position.x;
-                    transform.position.y = latestState.state.position.y;
+                    transform.position.x = latestState.state.transform.position.x;
+                    transform.position.y = latestState.state.transform.position.y;
                 }
                 continue;
             }
@@ -46,8 +46,8 @@ export class InterpolationSystem extends System {
             
             // Avoid division by zero
             if (timeDiff === 0) {
-                transform.position.x = prevState.state.position.x;
-                transform.position.y = prevState.state.position.y;
+                transform.position.x = prevState.state.transform.position.x;
+                transform.position.y = prevState.state.transform.position.y;
                 continue;
             }
 
@@ -56,7 +56,7 @@ export class InterpolationSystem extends System {
             const clampedAlpha = Math.max(0, Math.min(1, renderAlpha));
 
             // Set the entity's current transform to the interpolated position
-            const interpolated = Transform.lerp(prevState.state, nextState.state, clampedAlpha);
+            const interpolated = Transform.lerp(Transform.from(prevState.state), Transform.from(nextState.state), clampedAlpha);
             transform.position.x = interpolated.position.x;
             transform.position.y = interpolated.position.y;
             // You could interpolate rotation here as well

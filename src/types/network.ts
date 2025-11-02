@@ -25,6 +25,7 @@ export const zInputPayload = z.object({
     tick: z.number(),
     jump: z.boolean(),
     dodge: z.boolean(),
+    attack: z.boolean()
 });
 
 

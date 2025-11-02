@@ -13,6 +13,12 @@ export interface Component { }
  */
 export interface Resource { }
 
+/**
+ * An "Event"
+ * Every event that happens will be handled here
+ */
+export interface EventECS { }
+
 export class Entity {
     readonly id: number;
     private components = new Map<Function, Component>();
@@ -56,83 +62,19 @@ type ComponentInstance<T> = T extends new (...args: any[]) => infer R ? R : neve
 // Helper type for extracting constructor parameter types
 type ComponentCtor<T extends Component> = new (...args: any[]) => T;
 
-export abstract class System {
-    abstract update(world: World): void;
-
-    /**
-     * Queries all entities that have *all* required components.
-     * Returns a list of tuples containing component instances
-     * in the same order as the constructors provided.
-     */
-    protected query<C extends ReadonlyArray<ComponentCtor<Component>>>(
-        entities: Entity[],
-        ...componentTypes: C
-    ): Array<{ [K in keyof C]: ComponentInstance<C[K]> }> {
-        // console.log("call query!");
-        const matches: Array<{ [K in keyof C]: ComponentInstance<C[K]> }> = [];
-
-        for (const entity of entities) {
-            // Skip if entity doesn't have all required components
-            if (!componentTypes.every((ctor) => entity.hasComponent(ctor))) continue;
-
-            // Collect components
-            const components = componentTypes.map(
-                (ctor) => {
-                    const compOpt = entity.getComponent(ctor);
-                    return isSome(compOpt)
-                        ? compOpt.value
-                        : (() => { throw new Error(`Missing component ${ctor.name} after check`); })();
-                }
-            );
-
-            matches.push(components as { [K in keyof C]: ComponentInstance<C[K]> });
-        }
-
-        return matches;
-    }
-
-    /**
-     * Queries all entities that have *all* required components.
-     * Work the same as {@link query}. However, {@link queryWithEntity} also returns the {@link Entity} 
-     * @param entities 
-     * @param componentTypes 
-     * @returns 
-     */
-    protected queryWithEntity<C extends ReadonlyArray<ComponentCtor<Component>>>(
-        entities: Entity[],
-        ...componentTypes: C
-    ): Array<[Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]> {
-
-        const matches: Array<[Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]> = [];
-
-        for (const entity of entities) {
-            // Skip if entity doesn't have all required components
-            if (!componentTypes.every((ctor) => entity.hasComponent(ctor))) continue;
-
-            // Collect components
-            const components = componentTypes.map(
-                (ctor) => {
-                    const compOpt = entity.getComponent(ctor);
-                    if (isSome(compOpt)) {
-                        return compOpt.value;
-                    }
-                    throw new Error(`Missing component ${ctor.name} in queryWithEntity after check`);
-                }
-            );
-
-            matches.push([entity, ...components] as unknown as [Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]);
-        }
-        return matches;
-    }
-
+export interface System {
+    update(world: World): void;
     render?(world: World): void;
 }
+
 type SystemCtor<T extends System> = new (...args: any[]) => T;
 
 export class World {
     private entities = new Map<number, Entity>();
     private systems: System[] = [];
     private resources = new Map<Function, Resource>();
+    /** A map holding queues for all events sent this frame. */
+    private events: Map<Function, EventECS[]> = new Map();
 
     addEntity(entity: Entity): this {
         this.entities.set(entity.id, entity);
@@ -147,6 +89,7 @@ export class World {
         return this;
     }
     update(deltaTime: number): void {
+        this.clearEvents();
         const time = this.getResource(Time);
         if (isSome(time)) {
             time.value.fixedDeltaTime = deltaTime;
@@ -199,6 +142,38 @@ export class World {
         const res = this.resources.get(ctor);
         return res ? some(res as T) : none;
     }
+    /**
+     * Sends an event to the world's event queue.
+     * Systems can read these events in the same frame.
+     * @param event The event instance to send.
+     */
+    public sendEvent(event: EventECS) {
+        const eventType = event.constructor;
+        if (!this.events.has(eventType)) {
+            this.events.set(eventType, []);
+        }
+        this.events.get(eventType)!.push(event);
+    }
+
+    /**
+     * Reads all events of a specific type that have been
+     * sent in the current frame.
+     * @param eventType The class of the event to read (e.g., CollisionEvent).
+     * @returns An array of event instances.
+     */
+    public readEvents<T extends EventECS>(eventType: new (...args: any[]) => T): T[] {
+        const queue = this.events.get(eventType) as T[];
+        return queue || [];
+    }
+
+    /**
+     * Clears all event queues.
+     * This is called by the World's update loop.
+     */
+    private clearEvents() {
+        this.events.clear();
+    }
+    
 
     /**
      * Queries all entities that have *all* required components.

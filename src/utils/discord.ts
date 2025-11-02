@@ -1,12 +1,19 @@
 import { DiscordSDK, type IDiscordSDK } from "@discord/embedded-app-sdk";
 import { isErr, tryCatchAsync } from "../types/result";
+import type { Resource } from "@/types";
+import { NetworkResource } from "@/ecs/resources";
 
 export async function setupDiscordSDK(
   discordSdk: IDiscordSDK | null,
-  setAuth: (auth: any) => void
+  setAuth: (auth: any) => void,
+  addResource: (res: Resource) => void,
+  backEndUrl: string | undefined
 ) {
   if (!discordSdk) {
     console.warn("Not in Discord iframe, running in standalone mode");
+    if (backEndUrl) {
+      addResource(new NetworkResource(backEndUrl));
+    }
     return;
   }
 

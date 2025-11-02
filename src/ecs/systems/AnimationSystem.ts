@@ -1,8 +1,8 @@
-import { isNone, System, unwrapOpt, World } from "@/types";
+import { isNone, type System, unwrapOpt, World } from "@/types";
 import { Time } from "../resources";
 import { AnimationController, PlayerState, RigidBody } from "../components";
 
-export class AnimationSystem extends System {
+export class AnimationSystem implements System {
     update(world: World): void {
         const timeRes= world.getResource(Time);
         if (isNone(timeRes)) return;
@@ -17,11 +17,11 @@ export class AnimationSystem extends System {
         for (const [controller, playerState, rb] of query) {
             // Decide new animation style
             let newState = "idle";
-            if (!playerState.isGrounded) {
-                newState = (rb.body.velocity.y < 0) ? "jump" : "fall";
-            } else if (Math.abs(rb.body.velocity.x) > 0.1) {
-                newState = "run";
-            }
+            // if (!playerState.isGrounded) {
+            //     newState = (rb.body.velocity.y < 0) ? "jump" : "fall";
+            // } else if (Math.abs(rb.body.velocity.x) > 0.1) {
+            //     newState = "run";
+            // }
             // State changing
             if (controller.currentState !== newState) {
                 const clip = controller.states.get(newState);

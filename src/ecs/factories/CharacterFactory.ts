@@ -1,12 +1,17 @@
 import Matter from "matter-js";
 import { Entity } from "../../types/ecs";
-import { PlayerState, RigidBody } from "../components";
+import { AnimationController, PlayerState, RigidBody, Sprite } from "../components";
 import { DomMaterial } from "../components/DomMaterial";
 import { LocalPlayerTag, PredictionHistory } from "../components/LocalPlayerTag";
 import { Mesh2D } from "../components/Mesh2D";
 import { NetworkStateBuffer } from "../components/NetworkStateBuffer";
 import { Transform } from "../components/Transform";
 import { GroundCheckRay } from "../components/GroundCheckRay";
+import { Knockbacker } from "../components/Knockbacker";
+import type { GameConfig } from "@/types/config";
+import { Hurtbox } from "../components/Hurtbox";
+
+
 
 /**
  * Factory class for creating preconfigured character entities.
@@ -60,49 +65,59 @@ export class CharacterFactory {
      * - `z-index`: `5`
      */
 
-    private static create(props: {
-        xPos: number,
-        yPos: number,
+    private createBase(props: {
+        x: number,
+        y: number,
         width?: number, height?: number, isPlayer?: boolean,
-        styles: Partial<CSSStyleDeclaration>
+        styles: Partial<CSSStyleDeclaration>,
     }) {
-        
-        const { xPos, yPos, width = 20, height = 20, isPlayer = false, styles } = props;
+
+        const { x: xPos, y: yPos, width = 20, height = 20, isPlayer = false, styles } = props;
+        const body = Matter.Bodies.rectangle(xPos, yPos, width, height, {
+            inertia: Infinity,
+            friction: 0.1,
+            restitution: 0.0,
+            collisionFilter: { group: -1 }
+        });
         const entity = new Entity()
-            .addComponent(new Transform(xPos, yPos))
+            .addComponent(new Transform(xPos, yPos, 0))
             .addComponent(new Mesh2D(width, height))
             .addComponent(new DomMaterial({
                 className: 'entity player',
                 styles: styles,
-                zIndex: 5
             }))
-            .addComponent(RigidBody.create(() => Matter.Bodies.rectangle(xPos, yPos, width, height, {
-                friction: 0.1,
-                restitution: 0.1,
-                inertia: Infinity
+            .addComponent(RigidBody.createFromBody(body))
+            .addComponent(new PlayerState())
+            .addComponent(new Hurtbox())
+            .addComponent(new GroundCheckRay(height / 2 + 2))
+            .addComponent(new Knockbacker());
 
-            })));
+        return entity;
+    };
 
+    createRed(props: {
+        xPos: number, yPos: number,
+        width?: number, height?: number,
+        isPlayer?: boolean, config: GameConfig
+    }): Entity {
+        const { xPos, yPos, width = 20, height = 20, isPlayer = false, config } = props;
+        const entity = this.createBase({
+            x: xPos, y: yPos, width, height, isPlayer, styles: {
+                backgroundColor: 'firebrick',
+                zIndex: "6",
+            }
+        })
         if (isPlayer) {
             entity.addComponent(new LocalPlayerTag())
-                .addComponent(new GroundCheckRay(height / 2 + 2))
-                .addComponent(new PlayerState())
                 .addComponent(new PredictionHistory())
         } else {
             entity.addComponent(new NetworkStateBuffer());
         }
-        return entity;
-    };
+        entity
+            .addComponent(new Sprite(config.player.sprite))
+            .addComponent(new AnimationController("idle", config.player.animations));
 
-    static createRed(props: {
-        xPos: number,
-        yPos: number,
-        width?: number, height?: number, isPlayer?: boolean
-    }): Entity {
-        const { xPos, yPos, width = 20, height = 20, isPlayer = false} = props;
-        return this.create({xPos, yPos, width, height, isPlayer, styles: {
-            backgroundColor: 'firebrick'
-        }})
+        return entity;
     }
 
     /**
@@ -128,16 +143,29 @@ export class CharacterFactory {
  * - Border: `"2px solid white"`
  * - `z-index`: `10`
  */
-    static createBlue(props: {
+    createBlue(props: {
         xPos: number,
         yPos: number,
-        width?: number, height?: number, isPlayer?: boolean
+        width?: number, height?: number, isPlayer?: boolean,
+        config: GameConfig
     }): Entity {
-        const { xPos, yPos, width = 20, height = 20, isPlayer = false } = props;
-        return this.create({xPos, yPos, width, height, isPlayer, styles: {
-            backgroundColor: 'blue',
-            border: '2px solid white',
-        }})
+        const { xPos, yPos, width = 20, height = 20, isPlayer = false, config } = props;
+        const entity = this.createBase({
+            x: xPos, y: yPos, width, height, isPlayer, styles: {
+                backgroundColor: 'blue',
+                border: '2px solid white',
+                zIndex: "5"
+            }
+        })
+
+        if (isPlayer) {
+            entity.addComponent(new LocalPlayerTag())
+                .addComponent(new PredictionHistory())
+        } else {
+            entity.addComponent(new NetworkStateBuffer());
+        }
+
+        return entity
     }
 
 }

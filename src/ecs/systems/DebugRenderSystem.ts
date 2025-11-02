@@ -1,89 +1,57 @@
-import { Entity, System, World } from "../../types/ecs";
+import { Entity, type System, World } from "../../types/ecs";
 import { Transform } from "../components/Transform";
-import { DebugCollider, DebugPhysicsState } from "../components/DebugCollider";
-// Import the new tag
-import { StaticMapObjectTag } from "../components";
-import { isSome } from "../../types/option";
+import { Hitbox, Mesh2D} from "../components";
+import { isNone, isSome, unwrapOpt } from "../../types/option";
+import { DomResource } from "../resources";
 
 /**
  * This system draws wireframe colliders and other debug info.
  * It attaches itself to the already-interpolated Transform.
  */
-export class DebugRenderSystem extends System {
-    private elements = new Map<number, HTMLDivElement>();
-    private container: HTMLElement | null = null;
+export class DebugRenderSystem implements System {
+    private activeHitboxes = new Set<number>();
 
-    constructor() {
-        super();
-        this.container = document.getElementById('world');
-    }
 
-    update(_world: World): void {}
+    update(_world: World): void { }
 
     render(world: World): void {
-        if (!this.container) return;
+        const domRes = world.getResource(DomResource);
+        if (isNone(domRes)) return;
 
-        // Query for entities that have both a Transform and a DebugCollider
-        const query = world.queryWithEntity(Transform, DebugCollider);
-        const seen = new Set<number>();
+        const dom = unwrapOpt(domRes);
+        const elements = dom.elements;
 
-        for (const [entity, transform, collider] of query) {
-            seen.add(entity.id);
-            let el = this.elements.get(entity.id);
+        const nextActiveHitboxes = new Set<number>();
+        const query = world.queryWithEntity(Hitbox, Transform, Mesh2D);
 
-            // Create debug element if it doesn't exist
-            if (!el) {
-                el = document.createElement('div');
-                el.className = 'debug-collider';
-                el.style.position = 'absolute';
-                el.style.border = '1px dashed rgba(0, 255, 0, 0.7)';
-                el.style.boxSizing = 'border-box'; // Important!
-                this.container.appendChild(el);
-                this.elements.set(entity.id, el);
-            }
+        for (const [entity, _hitbox, transform, mesh] of query) {
+            nextActiveHitboxes.add(entity.id);
+            const el = elements.get(entity.id);
+            if (!el) continue;
 
-            // --- APPLY STATE ---
-            
-            // Set Position: Use the *smoothly interpolated* transform
-            // We adjust position by -width/2 and -height/2 to center the box
-            const halfWidth = collider.shape.width / 2;
-            const halfHeight = collider.shape.height / 2;
-            el.style.transform = `translate3d(${transform.position.x - halfWidth}px, ${transform.position.y - halfHeight}px, 0)`;
-            
-            // Set Size: Snap to the *authoritative* collider shape
-            el.style.width = `${collider.shape.width}px`;
-            el.style.height = `${collider.shape.height}px`;
+            el.style.border = "2px solid red";
+            el.style.boxSizing = "border-box";
+            el.style.zIndex = "100";
 
-            // Set Color (based on entity type)
-            if (entity.hasComponent(StaticMapObjectTag)) {
-                // Style for static map objects
-                el.style.borderColor = 'rgba(255, 255, 255, 0.8)'; // White
-                el.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            } else {
-                // Style for dynamic objects (players, etc.)
-                const physics = entity.getComponent(DebugPhysicsState);
-                if (isSome(physics)) {
-                    if (physics.value.isColliding) {
-                        el.style.borderColor = 'rgba(255, 0, 0, 0.7)';
-                    } else if (physics.value.isGrounded) {
-                        el.style.borderColor = 'rgba(0, 255, 0, 0.7)';
-                    } else {
-                        el.style.borderColor = 'rgba(255, 255, 0, 0.7)';
-                    }
-                } else {
-                    // Default dynamic object color
-                     el.style.borderColor = 'rgba(0, 255, 255, 0.7)'; // Cyan
+            el.style.width = `${mesh.width}px`;
+            el.style.height = `${mesh.height}px`;
+
+            el.style.transform = `translate3d(${transform.position.x}px, ${transform.position.y}px, 0) rotate(${transform.rotation}deg) scaleX(1)`;
+        }
+
+        for (const id of this.activeHitboxes) {
+            if (!nextActiveHitboxes.has(id)) {
+                const el = elements.get(id);
+                if (el) {
+                    el.style.border = "none";
+                    el.style.zIndex = "auto";
                 }
             }
         }
 
-        // Garbage collect elements
-        for (const [id, el] of this.elements.entries()) {
-            if (!seen.has(id)) {
-                el.remove();
-                this.elements.delete(id);
-            }
-        }
+        // 3. Simpan set aktif untuk frame berikutnya
+        this.activeHitboxes = nextActiveHitboxes;
+
     }
 }
 

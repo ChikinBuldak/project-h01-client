@@ -17,6 +17,8 @@ export class PlayerState implements Component {
 
     private dodgeTimer: number;
     private dodgeCooldown: number;
+    private maxJumpCount: number;
+    private currentJumpCount: number;
   
     constructor(isGrounded: boolean = false) {
         this.isGrounded = isGrounded;
@@ -24,6 +26,8 @@ export class PlayerState implements Component {
         this.faceDirection = 1;
         this.dodgeTimer = 0;
         this.dodgeCooldown = 0; 
+        this.maxJumpCount = 3;
+        this.currentJumpCount = 3;
     }
 
     set setDodgeTimer(value: number) {
@@ -42,5 +46,17 @@ export class PlayerState implements Component {
 
     get getDodgeCooldown() {
         return this.dodgeCooldown;
+    }
+
+    get JumpCount() {
+        return this.currentJumpCount;
+    }
+
+    decreaseJumpCount() {
+        this.currentJumpCount = clamp(--this.currentJumpCount, 0, this.maxJumpCount);
+    }
+
+    resetJumpCount() {
+        this.currentJumpCount = this.maxJumpCount;
     }
 }

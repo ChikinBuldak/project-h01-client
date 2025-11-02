@@ -1,10 +1,3 @@
-export function parseBoolean(str: string) {
-    switch (str) {
-        case 'true':
-            return true;
-        case 'false':
-            return false;
-        default:
-            return undefined;
-    }
+export function parseBoolean(value: string | undefined) {
+    return value?.toLowerCase() === 'true';
 }

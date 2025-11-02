@@ -1,19 +1,21 @@
 import Matter from "matter-js";
-import { System, World } from "../../types/ecs";
+import { type System, World } from "../../types/ecs";
 import { RigidBody } from "../components";
 import { LocalPlayerTag, PredictionHistory, type PlayerPhysicsState } from "../components/LocalPlayerTag";
 import { PlayerState } from "../components/PlayerState";
-import { Time } from "../resources";
-import { isNone, unwrapOpt, type Input } from "@/types";
+import { NetworkResource, Time } from "../resources";
+import { isNone, isSome, unwrapOpt, type Input, type PlayerInput } from "@/types";
+import { InputEvent } from "../events/InputEvent";
+import { AttackRequest } from "../components/AttackRequest";
 // import { Transform } from "../components/Transform";
 
 const PLAYER_SPEED = 5;
-const JUMP_FORCE = 16;
+const JUMP_FORCE = 12;
 const DODGE_FORCE = 15;
 const DODGE_DURATION = 0.2;
 const DODGE_COOLDOWN = 1.0;
 
-export class PlayerMovementSystem extends System {
+export class PlayerMovementSystem implements System {
     public cloneState(rb: RigidBody, state: PlayerState): PlayerPhysicsState {
         return {
             position: { ...rb.body.position },
@@ -29,21 +31,42 @@ export class PlayerMovementSystem extends System {
         // get delta time from resource
         const dt = unwrapOpt(timeRes).fixedDeltaTime / 1000;
 
-        const localPlayerQuery = world.queryWithFilter(
+        const localPlayerQuery = world.queryWithEntityAndFilter(
             [RigidBody, PlayerState, PredictionHistory],
             [LocalPlayerTag],
         );
         if (localPlayerQuery.length === 0) return;
 
-        const [rb, state, history] = localPlayerQuery[0];
+        const [playerEntity, rb, state, history] = localPlayerQuery[0];
 
-        this.tickTimers(rb, state, dt);
+        this.tickTimers(state, dt);
+
+        const inputEvents = world.readEvents(InputEvent);
+        const net = world.getResource(NetworkResource);
+
+        for (const event of inputEvents) {
+            history.pendingInputs.push({ tick: event.tick, input: event.payload });
+
+            if (isSome(net)) {
+                const message: PlayerInput = {
+                    type: 'playerInput',
+                    payload: event.payload
+                };
+                unwrapOpt(net).sendMessage(message);
+            }
+
+            // Handle one-shot attack events
+            if (event.payload.attack) {
+                playerEntity.addComponent(new AttackRequest());
+            }
+        }
+
         if (history.pendingInputs.length === 0) return;
 
         // Loop through all pending inputs, apply them, and save the resulting state.
         for (const { tick, input } of history.pendingInputs) {
             // Apply the input logic
-            this.applyInput(rb, state, input as Input, dt);
+            this.applyInput(rb, state, input as Input);
 
             // Save the *resulting* state to history, tagged with the tick
             const newState = this.cloneState(rb, state);
@@ -62,7 +85,7 @@ export class PlayerMovementSystem extends System {
      * Public helper to apply a single input.
      * This is used by both this system and the ReconciliationSystem's "replay" logic.
      */
-    public applyInput(rb: RigidBody, state: PlayerState, input: Input, dt: number): void {
+    public applyInput(rb: RigidBody, state: PlayerState, input: Input): void {
         const body = rb.body;
 
         // Update faceDirection based on horizontal input
@@ -86,25 +109,27 @@ export class PlayerMovementSystem extends System {
             });
 
         }
+
         // Jump "event"
-        if (input.jump && state.isGrounded) {
+        if (input.jump && state.JumpCount > 0) {
             Matter.Body.setVelocity(body, {
                 x: body.velocity.x,
                 y: -JUMP_FORCE
             });
             state.isGrounded = false;
+            state.decreaseJumpCount();
         }
 
-        // 3. Self-correction
+        // Self-correction
         if (!input.jump && body.velocity.y < -0.1) {
             state.isGrounded = false;
         }
     }
 
     /**
- * Ticks down all active timers.
- */
-    private tickTimers(rb: RigidBody, state: PlayerState, dt: number): void {
+     * Ticks down all active timers.
+     */
+    private tickTimers(state: PlayerState, dt: number): void {
         // Tick down timers
         if (state.getDodgeCooldown > 0) {
             state.setDodgeCooldown = state.getDodgeCooldown - dt;
