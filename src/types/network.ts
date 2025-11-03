@@ -3,7 +3,11 @@ import type { Transform } from "../ecs/components/Transform";
 
 
 export type TransformState = Pick<Transform,  'position' | 'rotation'>;
-// --- BASE SCHEMAS ---
+// === BASE SCHEMAS ===
+const zVector = z.object({
+    x: z.number(),
+    y: z.number(),
+});
 const zTransform: z.ZodType<Pick<Transform,  'position' | 'rotation'>> = z.object({
   position: z.object({
     x: z.number(),
@@ -13,29 +17,82 @@ const zTransform: z.ZodType<Pick<Transform,  'position' | 'rotation'>> = z.objec
   
 });
 
-// --- CLIENT-TO-SERVER MESSAGES ---
+// === CLIENT-TO-SERVER MESSAGES ===
 
-export const zPlayerInput = z.object({
-  type: z.literal("playerInput"),
-  payload: z.object({
-    tick: z.number(),
+export const zInputPayload = z.object({
     dx: z.number(),
-    dy: z.number(),
-  }),
+    dy: z.number(), // This is 0 for platformer, but good to keep
+    tick: z.number(),
+    jump: z.boolean(),
+    dodge: z.boolean(),
+    attack: z.boolean()
 });
 
-// Union schema for all possible client messages
-export const zClientMessage = z.discriminatedUnion("type", [
-  zPlayerInput,
-  // Add other client messages here, e.g., zRequestChatMessage
-]);
 
-// Infer TypeScript types from Zod schemas
-export type PlayerInput = z.infer<typeof zPlayerInput>;
-export type ClientMessage = z.infer<typeof zClientMessage>;
+export const zPlayerInput = z.object({
+    type: z.literal('playerInput'),
+    payload: zInputPayload,
+});
+/**
+ * The full, authoritative physics state for a player.
+ * Sent by the server during reconciliation.
+ */
+export const zPlayerPhysicsState = z.object({
+    transform: z.object({
+      position: zVector,
+      rotation: z.number()
+    }),
+    velocity: zVector,
+    isGrounded: z.boolean(),
+});
+/**
+ * The server's main reconciliation packet for the local player.
+*/
+export const zPlayerStateMessage = z.object({
+    type: z.literal("player_state"),
+    tick: z.number(), // The input tick this state *acknowledges*
+    state: zPlayerPhysicsState,
+  });
+  
+  /**
+   * A message for an entity we are just interpolating (not ourself).
+  */
+ export const zEntityStateMessage = z.object({
+   type: z.literal("entity_state"),
+   id: z.string(),
+   tick: z.number(),
+   state: zPlayerPhysicsState, // Can re-use the same state shape
+  });
+  
+  // Union schema for all possible client messages
+  export const zClientMessage = z.discriminatedUnion("type", [
+    zPlayerInput,
+  ]);
 
+  // --- Map Data ---
+export const zMapObject = z.object({
+    id: z.string(),
+    position: zVector,
+    width: z.number(),
+    height: z.number(),
+});
+export const zMapLoadMessage = z.object({
+    type: z.literal("map_load"),
+    objects: z.array(zMapObject),
+});
+  
+  // Infer TypeScript types from Zod schemas
+  export type Input = z.infer<typeof zInputPayload>;
+  export type PlayerInput = z.infer<typeof zPlayerInput>;
+  export type ClientMessage = z.infer<typeof zClientMessage>;
+  export type PlayerPhysicsState = z.infer<typeof zPlayerPhysicsState>;
+  export type EntityStateMessage = z.infer<typeof zEntityStateMessage>;
+  export type PlayerStateMessage = z.infer<typeof zPlayerStateMessage>;
+  export type MapObject = z.infer<typeof zMapObject>;
+  export type MapLoadMessage = z.infer<typeof zMapLoadMessage>;
+  
 
-// --- SERVER-TO-CLIENT MESSAGES ---
+// === SERVER-TO-CLIENT MESSAGES ===
 
 const zPlayerJoined = z.object({
   type: z.literal("playerJoined"),
@@ -75,11 +132,9 @@ const zReconciliation = z.object({
 
 // Union schema for all possible server messages
 export const zServerMessage = z.discriminatedUnion("type", [
-  zPlayerJoined,
-  zPlayerLeft,
-  zWorldState,
-  zReconciliation,
-  // Add other server messages here
+    zPlayerStateMessage,
+    zEntityStateMessage,
+    zMapLoadMessage,
 ]);
 
 // Infer TypeScript types from Zod schemas
@@ -94,16 +149,11 @@ export type ServerMessage = z.infer<typeof zServerMessage>;
  * @param data The unknown data (from JSON.parse())
  * @returns The strongly-typed ServerMessage, or null if invalid.
  */
-export function parseServerMessage(data: unknown): ServerMessage | null {
+export function parseServerMessage(data: unknown): z.ZodSafeParseResult<ServerMessage> {
   // Use Zod's safeParse to validate the data
-  const result = zServerMessage.safeParse(data);
-
-  if (result.success) {
-    // Return the strongly-typed data
-    return result.data;
-  } else {
-    // Log the detailed validation errors
-    console.error("[WS Parser] Invalid message received:", result.error.issues);
-    return null;
-  }
+    const result = zServerMessage.safeParse(data);
+    if (!result.success) {
+        console.error("Failed to parse server message:", result.error);
+    }
+    return result;
 }

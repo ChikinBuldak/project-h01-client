@@ -28,7 +28,7 @@ export const isErr = <T, E>(result: Result<T, E>): result is Err<E> => result.ta
 /**
  * Maps an Ok<T> to Ok<U> by applying a function, leaving Err<E> untouched.
  */
-export const map = <T, E, U>(
+export const mapRes = <T, E, U>(
     result: Result<T, E>,
     fn: (t: T) => U
 ): Result<U, E> => {
@@ -42,7 +42,7 @@ export const map = <T, E, U>(
 /**
  * Maps an Err<E> to a new Err<U> by applying a function, leaving Ok<T> untouched.
  */
-export const mapErr = <T, E, U>(
+export const mapErrRes = <T, E, U>(
     result: Result<T, E>,
     fn: (e: E) => U
 ): Result<T, U> => {
@@ -57,7 +57,7 @@ export const mapErr = <T, E, U>(
  * Chains two fallible operations.
  * Maps an Ok<T> to Result<U, E> by calling a function that returns a Result.
  */
-export const andThen = <T, E, U>(
+export const andThenRes = <T, E, U>(
     result: Result<T, E>,
     fn: (t: T) => Result<U, E>
 ): Result<U, E> => {
@@ -82,21 +82,21 @@ export const expect = <T, E>(result: Result<T, E>, msg: string): T => {
 /**
  * Unwraps the value, throwing a default error message if it is Err.
  */
-export const unwrap = <T, E>(result: Result<T, E>): T => {
+export const unwrapRes = <T, E>(result: Result<T, E>): T => {
     return expect(result, 'Called unwrap() on an Err value');
 };
 
 /**
  * Returns the contained Ok value or a provided default value.
  */
-export const unwrapOr = <T, E>(result: Result<T, E>, defaultValue: T): T => {
+export const unwrapOrRes = <T, E>(result: Result<T, E>, defaultValue: T): T => {
     if (isOk(result)) {
         return result.value;
     }
     return defaultValue;
 };
 
-export const unwrapOrElse = <T, E>(r: Result<T, E>, fn: (e: E) => T): T =>
+export const unwrapOrElseRes = <T, E>(r: Result<T, E>, fn: (e: E) => T): T =>
   isOk(r) ? r.value : fn(r.error);
 
 export const matchOk = <T, E>(result: Result<T, E>): { value: T } | undefined => {

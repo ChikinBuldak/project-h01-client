@@ -1,0 +1,75 @@
+{
+  "assets": {
+    "images": [
+      "/assets/player-spritesheet.png"
+    ],
+    "audio": [
+      "/assets/jump.wav",
+      "/assets/dodge.wav",
+      "/assets/bgm.mp3"
+    ]
+  },
+  "player": {
+    "width": 64,
+    "height": 130,
+    "frameWidth": 191,
+    "frameHeight": 130,
+    "model": {
+      "name": "red",
+      "sprite": "/assets/player-spritesheet.png",
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frameCount": 7,
+          "frameDuration": 0.2
+        },
+        "basic_attack_1": {
+          "row": 2,
+          "frameCount": 2,
+          "frameDuration": 0.2
+        },
+        "basic_attack_2": {
+          "row": 3,
+          "frameCount": 2,
+          "frameDuration": 0.2
+        },
+        "basic_attack_3": {
+          "row": 4,
+          "frameCount": 10,
+          "frameDuration": 0.7
+        }
+      }
+    }
+  },
+  "scene": {
+    "localPlayer": {
+      "x": 860,
+      "y": 50
+    },
+    "remotePlayer": {
+      "x": 720,
+      "y": 50,
+      "mockMove": true
+    },
+    "ground": [
+      {
+        "x": 860,
+        "y": 500,
+        "width": 960,
+        "height": 50
+      },
+      {
+        "x": 800,
+        "y": 200,
+        "width": 200,
+        "height": 30
+      }
+    ],
+    "pit": {
+      "x": 860,
+      "y": 2100,
+      "width": 3500,
+      "height": 10
+    }
+  }
+}

@@ -1,3 +1,2 @@
-export interface EntityRenderer {
-    render: () => void; 
-}
+export * from '../factories/CharacterFactory';
+export * from '../factories/WorldFactory';
