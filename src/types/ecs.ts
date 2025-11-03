@@ -19,6 +19,26 @@ export interface Resource { }
  */
 export interface EventECS { }
 
+/**
+ * Every application state (like MainMenu, InGame) will implement this.
+ */
+export interface AppState {
+    /**
+     * Logic that will be run once after entering this state. use this
+     * to initiate all systems and entities required
+     */
+    onEnter(world: World): void;
+
+    /**
+     * Logic that will be run once after entering this state. use this
+     * to remove unusud systems and entities
+     */
+    onExit(world: World): void;
+}
+
+/**
+ * A single instance of "Entity". Can have 0 to many components
+ */
 export class Entity {
     readonly id: number;
     private components = new Map<Function, Component>();
@@ -57,10 +77,10 @@ export class Entity {
     }
 }
 
-type ComponentInstance<T> = T extends new (...args: any[]) => infer R ? R : never;
+export type ComponentInstance<T> = T extends new (...args: any[]) => infer R ? R : never;
 
 // Helper type for extracting constructor parameter types
-type ComponentCtor<T extends Component> = new (...args: any[]) => T;
+export type ComponentCtor<T extends Component> = new (...args: any[]) => T;
 
 export interface System {
     update(world: World): void;

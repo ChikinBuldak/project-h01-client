@@ -1,4 +1,3 @@
-export * from './ApplyHit';
 export * from './AttackRequest';
 export * from './GroundCheckRay';
 export * from './Hitbox';

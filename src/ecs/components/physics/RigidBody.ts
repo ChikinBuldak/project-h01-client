@@ -1,6 +1,6 @@
-import type { Component } from "../../types/ecs";
+import type { Component } from "@/types/ecs";
 import Matter from "matter-js";
-import { safeCall, type Undefinable, type Nullable } from "../../types/option";
+import { safeCall, type Undefinable, type Nullable } from "@/types/option";
 
 
 export type RigidBodyType = "static" | "dynamic"

@@ -1,15 +1,15 @@
 import type { Resource } from "@/types";
 
 export class DomResource implements Resource {
-    /** Elemen utama <div id="world-container"> */
+    /** Main element <div id="world-container"> */
     public container: HTMLElement | null = null;
     
-    /** Elemen <div id="world"> yang digerakkan oleh kamera */
+    /** Element <div id="world"> moved by camera */
     public worldElement: HTMLElement | null = null;
 
     /**
-     * Pemetaan semua entitas yang di-render ke elemen DOM mereka.
-     * DomRenderSystem akan mengelola map ini.
+     * Map of all entities that are rendered into their DOM element.
+     * DomRenderSystem will manage this map.
      */
     public elements = new Map<number, HTMLDivElement>();
 }

@@ -1,4 +1,4 @@
-import type { Component } from "../../types/ecs";
+import type { Component } from "@/types/ecs";
 
 /**
  * Attaching this component to an entity (like a player)

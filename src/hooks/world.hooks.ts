@@ -13,8 +13,6 @@ export const useGameLoop = () => {
 
     useEffect(() => {
         let frameId: number;
-
-
         const tick = (currentTime: number) => {
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;

@@ -1,5 +1,5 @@
 import Matter from "matter-js";
-import { Entity, type System, World } from "../../../types/ecs";
+import {type System, World} from '../../../types/ecs';
 
 import { Time } from "../../resources/Time";
 import { PhysicsResource } from "../../resources/PhysicsResource";
@@ -8,6 +8,10 @@ import { Hurtbox } from "../../components/character/Hurtbox";
 import { CollisionEvent } from "../../events/CollisionEvent";
 import { RigidBody, PlayerState, GroundCheckRay, Transform } from "@/ecs/components";
 import { isNone, isSome } from "@/types";
+import { Pit } from "@/ecs/components/tag";
+import { PlayerFallEvent } from "@/ecs/events/PlayerFallEvent";
+import { sendEventOnCollision } from "@/utils/event";
+import LogEvent from "@/ecs/events/LogEvent";
 
 export class PhysicsSystem implements System {
     /** A guard to ensure we only set up event listeners once. */
@@ -30,18 +34,25 @@ export class PhysicsSystem implements System {
                     const entityB = world.getEntity(idB);
 
                     if (isSome(entityA) && isSome(entityB)) {
-                        const isHit = entityA.value.hasComponent(Hitbox) && entityB.value.hasComponent(Hurtbox);
-                        const isHurt = entityA.value.hasComponent(Hurtbox) && entityB.value.hasComponent(Hitbox);
+                        const entA = entityA.value;
+                        const entB = entityB.value;
+                        const isHit = entA.hasComponent(Hitbox) && entB.hasComponent(Hurtbox);
+                        const isHurt = entA.hasComponent(Hurtbox) && entB.hasComponent(Hitbox);
 
                         if (isHit || isHurt) {
                             // Send the global CollisionEvent
-                            world.sendEvent(new CollisionEvent(entityA.value, entityB.value));
+                            world.sendEvent(new CollisionEvent(entA, entB));
                         }
+
+                        // send event 
+                        sendEventOnCollision(entA, entB, Hurtbox, Pit, (w, _) => world.sendEvent(new PlayerFallEvent(w)));
+
                     }
                 }
             }
         });
     }
+
 
     private checkGround(world: World, resource: PhysicsResource) {
         const groundCheckingQuery = world.query(RigidBody, PlayerState, GroundCheckRay);
@@ -86,7 +97,7 @@ export class PhysicsSystem implements System {
         const time = timeRes.value;
         const resource = physicsRes.value;
         if (!this.isInitialized) {
-            console.log("Initialize collision event listener");
+            world.sendEvent(new LogEvent('info', "[PhysicsSystem] Initialize collision event listener"))
             this.setupEventListeners(world, resource);
             this.isInitialized = true;
         }

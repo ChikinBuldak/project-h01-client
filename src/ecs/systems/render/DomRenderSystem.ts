@@ -3,6 +3,7 @@ import { AssetServer} from "@/ecs/resources";
 import { isNone, isSome, unwrapOpt } from "@/types";
 import { AnimationController, DomMaterial, LocalPlayerTag, Mesh2D, PlayerState, Sprite, Transform } from "@/ecs/components";
 import { DomResource } from "@/ecs/resources/DomResource";
+import LogEvent from "@/ecs/events/LogEvent";
 
 export class DomRenderSystem implements System {
 
@@ -33,17 +34,18 @@ export class DomRenderSystem implements System {
             dom.container = document.getElementById('world-container');
             dom.worldElement = document.getElementById('world');
             if (!dom.container || !dom.worldElement) {
-                console.error("DomRenderSystem: Failed to find #world or #world-container. Retrying next frame.");
+                world.sendEvent(new LogEvent('error', "[DomRenderSystem] Failed to find #world or #world-container. Retrying next frame."))
                 return;
             }
 
             const res = world.getResource(AssetServer);
             if (isNone(res)) {
-                console.warn("DomRenderSystem: AssetServer resource not found. Retrying next frame.");
+                world.sendEvent(new LogEvent('warn', "[DomRenderSystem] AssetServer resource not found. Retrying next frame."))
                 return;
             }
             // If we got here, all dependencies are loaded
-            console.log("DomRenderSystem Initialized Successfully.");
+            console.log();
+            world.sendEvent(new LogEvent('info', "[DomRenderSystem] DomRenderSystem Initialized Successfully."))
             this.isInitialized = true;
         }
     }

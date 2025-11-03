@@ -9,6 +9,9 @@ import { CollisionEvent } from "../../events/CollisionEvent";
 import { Hurtbox } from "../../components/character/Hurtbox";
 import { Knockbacker } from "../../components/character/Knockbacker";
 import { Despawn } from "../../components/tag/Despawn";
+import CharacterTag from "@/ecs/components/tag/CharacterTag";
+import { CombatState } from "@/ecs/components/character/combat/CombatState";
+import LogEvent from "@/ecs/events/LogEvent";
 
 export class CombatSystem implements System {
     update(world: World): void {
@@ -17,42 +20,14 @@ export class CombatSystem implements System {
         if (isNone(timeRes) || isNone(physicsRes)) return;
         const dt = unwrapOpt(timeRes).fixedDeltaTime / 1000;
 
-        const attackRequests = world.queryWithEntityAndFilter([PlayerState, RigidBody], [AttackRequest]);
-        for (const [entity, state, rb] of attackRequests) {
-            // Spawn a predicted hitbox
-            const hitbox = new Hitbox({
-                ownerId: entity.id,
-                damage: 5,
-                baseForce: 2,
-                trajectory: { x: state.faceDirection, y: -0.5 },
-                lifetime: 0.2,
-                isPredicted: true
-            });
+        this.tickComboTimers(world, dt);
 
-            const hitboxSize = { width: 25, height: 25 };
-
-            // position the hitbox in front of the player
-            const hitboxPos = {
-                x: rb.body.position.x + (state.faceDirection * 50),
-                y: rb.body.position.y
+        const attackRequests = world.queryWithEntityAndFilter([CharacterTag], [AttackRequest, PlayerState, RigidBody]);
+        for (const [entity, tag] of attackRequests) {
+            const actionHandler = CharacterTag.mapToAction(tag, world)
+            if (actionHandler.isSome()) {
+                actionHandler.value.basicAttack(entity, world);
             }
-
-            const hitboxBody = Matter.Bodies.rectangle(
-                hitboxPos.x, hitboxPos.y,
-                hitboxSize.width, hitboxSize.height,
-                {
-                    isSensor: true,
-                    isStatic: true,
-                    collisionFilter: { group: 0 }
-                });
-
-            const hitboxEntity = new Entity()
-                .addComponent(hitbox)
-                .addComponent(RigidBody.createFromBody(hitboxBody))
-                .addComponent(new Transform(hitboxPos.x, hitboxPos.y, 0))
-                .addComponent(new Mesh2D(hitboxSize.width, hitboxSize.height));
-
-            world.addEntity(hitboxEntity);
             entity.removeComponent(AttackRequest);
         }
 
@@ -85,7 +60,7 @@ export class CombatSystem implements System {
             const victimKnockbacker = victim.getComponent(Knockbacker);
 
             if (isSome(victimRb) && isSome(victimKnockbacker)) {
-                console.log(`[CombatSystem] Local Hit! Applying knockback.`);
+                world.sendEvent(new LogEvent('info', `[CombatSystem] Local Hit! Applying knockback`));
                 const force = victimKnockbacker.value.applyHit(hitbox.damage, hitbox.baseForce);
                 const trajectory = Matter.Vector.normalise(hitbox.trajectory);
                 Matter.Body.applyForce(
@@ -96,6 +71,18 @@ export class CombatSystem implements System {
             }
         }
     }
-    render?(_world: World): void { }
+
+    private tickComboTimers(world: World, dt: number) {
+        const query = world.query(CombatState);
+        for (const [state] of query) {
+            state.timeSinceLastAttack += dt;
+
+            if (state.timeSinceLastAttack > state.resetThreshold) {
+                if (state.sequenceCount !== 0) {
+                    state.sequenceCount = 0;
+                }
+            }
+        }
+    }
 
 }

@@ -1,4 +1,4 @@
-import type { Component } from "../../types/ecs";
+import type { Component } from "@/types/ecs";
 
 export type ColliderShape = "rectangle" | "circle" | "polygon";
 

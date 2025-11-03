@@ -16,6 +16,9 @@ import type { GameConfig } from '@/types/config';
 import { PhysicsResource } from './resources/PhysicsResource';
 import { DomResource } from './resources/DomResource';
 import { GarbageCollectorSystem } from './systems/others/GarbageCollectorSystem';
+import { PlayerLifecycleSystem } from './systems/core/PlayerLifecycleSystem';
+import { CombatResource } from './resources/CombatResource';
+import { LogSystem } from './systems/others/LogSystem';
 
 /**
  * Adds all necessary resources to the world.
@@ -28,6 +31,7 @@ export function setupResources(
     addResource(new Time());
     addResource(new PhysicsResource());
     addResource(new DomResource());
+    addResource(new CombatResource());
 
     if (isOnline) {
         console.log("Running in ONLINE mode.");
@@ -56,6 +60,8 @@ export function setupSystems(
     addSystem(new AnimationSystem());
     addSystem(new CombatSystem());
     addSystem(new DebugRenderSystem());
+    addSystem(new PlayerLifecycleSystem());
+    addSystem(new LogSystem());
 
     // Online-only systems
     if (isOnline) {
@@ -74,13 +80,11 @@ export function setupEntities(
     isOnline: boolean,
     config: GameConfig
 ): number | undefined {
-    const characterFactory = new CharacterFactory();
-    const worldFactory = new WorldFactory();
 
     // --- Create Players ---
     const playerConfig = config.player;
     const remotePlayerPos = config.scene.remotePlayer;
-    const remotePlayer = characterFactory.createRed({
+    const remotePlayer = CharacterFactory.createRed({
         xPos: remotePlayerPos.x,
         yPos: remotePlayerPos.y,
         width: playerConfig.width,
@@ -89,7 +93,7 @@ export function setupEntities(
         config
     });
     const localPlayerPos = config.scene.localPlayer;
-    const localPlayer = characterFactory.createBlue({
+    const localPlayer = CharacterFactory.createBlue({
         xPos: localPlayerPos.x,
         yPos: localPlayerPos.y,
         width: playerConfig.width,
@@ -99,8 +103,15 @@ export function setupEntities(
     });
     // --- Create Map ---
     config.scene.ground.forEach(groundProps => {
-        const ground = worldFactory.createGround(groundProps);
+        const ground = WorldFactory.createGround(groundProps);
         addEntity(ground);
+    })
+
+    const pit = WorldFactory.createPit({
+        x: config.scene.pit.x,
+        y: config.scene.pit.y,
+        width: config.scene.pit.width,
+        height: config.scene.pit.height
     })
     
     console.log("Grounds added");
@@ -108,6 +119,7 @@ export function setupEntities(
     // --- Add to World ---
     addEntity(remotePlayer);
     addEntity(localPlayer);
+    addEntity(pit);
     console.log("Players added");
 
     // --- Mock Server (if offline) ---

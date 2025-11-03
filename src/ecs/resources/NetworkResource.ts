@@ -5,7 +5,7 @@ import { isErr, isOk, tryCatch } from "../../types/result";
 import type { Option } from "../../types/option";
 
 /**
- * A Bevy-style "Resource" that manages the WebSocket connection.
+ * A "Resource" that manages the WebSocket connection.
  * Systems can query for this resource to send messages or check status.
  * It holds incoming messages in a queue to be processed by a system.
  */

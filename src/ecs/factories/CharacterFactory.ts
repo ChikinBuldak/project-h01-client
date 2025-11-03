@@ -4,6 +4,8 @@ import { AnimationController, DomMaterial, GroundCheckRay, LocalPlayerTag, Mesh2
 import { Knockbacker } from "../components/character/Knockbacker";
 import type { GameConfig } from "@/types/config";
 import { Hurtbox } from "../components/character/Hurtbox";
+import CharacterTag from '../components/tag/CharacterTag';
+import { CombatState } from "../components/character/combat/CombatState";
 
 
 /**
@@ -58,7 +60,7 @@ export class CharacterFactory {
      * - `z-index`: `5`
      */
 
-    private createBase(props: {
+    private static createBase(props: {
         x: number,
         y: number,
         width?: number, height?: number, isPlayer?: boolean,
@@ -89,7 +91,7 @@ export class CharacterFactory {
         return entity;
     };
 
-    createRed(props: {
+    static createRed(props: {
         xPos: number, yPos: number,
         width?: number, height?: number,
         isPlayer?: boolean, config: GameConfig
@@ -108,10 +110,17 @@ export class CharacterFactory {
             entity.addComponent(new NetworkStateBuffer());
         }
         entity
-            .addComponent(new Sprite(config.player.sprite))
+            .addComponent(new Sprite(config.player.model.sprite))
+            .addComponent(new CharacterTag('red'))
+            .addComponent(new CombatState({
+                basicAttack: 1,
+                ultimate: 5,
+                baseAtkSpd: 1,
+                baseAtkPower: 2
+            }))
             .addComponent(new AnimationController(
                 "idle",
-                config.player.animations,
+                config.player.model.animations,
                 config.player.frameWidth,
                 config.player.frameHeight)
             );
@@ -142,13 +151,13 @@ export class CharacterFactory {
  * - Border: `"2px solid white"`
  * - `z-index`: `10`
  */
-    createBlue(props: {
+    static createBlue(props: {
         xPos: number,
         yPos: number,
         width?: number, height?: number, isPlayer?: boolean,
         config: GameConfig
     }): Entity {
-        const { xPos, yPos, width = 20, height = 20, isPlayer = false, config } = props;
+        const { xPos, yPos, width = 20, height = 20, isPlayer = false } = props;
         const entity = this.createBase({
             x: xPos, y: yPos, width, height, isPlayer, styles: {
                 backgroundColor: 'blue',

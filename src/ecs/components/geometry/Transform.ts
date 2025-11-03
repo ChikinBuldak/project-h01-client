@@ -1,6 +1,6 @@
 import type { Clone, Eq} from "@/types/utils";
-import type { Component } from "../../types/ecs";
-import type { PlayerPhysicsState, PlayerStateMessage, TransformState } from '../../types/network';
+import type { Component } from "@/types/ecs";
+import type { PlayerPhysicsState, PlayerStateMessage, TransformState } from '@/types/network';
 
 export interface Position {
     x: number,

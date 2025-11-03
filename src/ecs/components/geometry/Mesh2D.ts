@@ -1,4 +1,4 @@
-import type { Component } from "../../types/ecs";
+import type { Component } from "@/types/ecs";
 
 /**
  * A component that defines the 2D shape of an entity.

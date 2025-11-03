@@ -1,4 +1,4 @@
-import type { Component } from "../../types/ecs";
+import type { Component } from "@/types/ecs";
 
 export interface Material2DProps {
     /** Class name for the HTML element */

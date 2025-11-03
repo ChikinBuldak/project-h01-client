@@ -6,21 +6,21 @@ import type { Component } from "@/types";
  * knockedback out of the map, and then you die
  */
 export class Knockbacker implements Component {
-    private amount: number
+    private _amount: number
 
     /** How much each point of "amount" (percent) scales the knockback. */
-    private static readonly scalingFactor =  0.01;
+    private static readonly _scalingFactor =  0.01;
     /** * The percentage at which the launch multiplier kicks in.
      * (e.g., 80 = 80%)
      */
-    private static readonly launchThreshold = 80;
+    private static readonly _launchThreshold = 80;
     /**
      * The multiplier applied to knockback once the threshold is passed.
      */
-    private static readonly launchMultiplier = 1.8;
+    private static readonly _launchMultiplier = 1.8;
 
     constructor() {
-        this.amount = 0;
+        this._amount = 0;
     }
 
     /**
@@ -31,17 +31,24 @@ export class Knockbacker implements Component {
      * @returns The final knockback force magnitude to be applied.
      */
     public applyHit(attackDamage: number, attackBaseForce: number): number {
-        this.amount += attackDamage;
+        this._amount += attackDamage;
 
         // Calculate knockback force
         // Formula: (BaseForce + (Damage * 0.5)) * (1.0 + (Amount * ScalingFactor))
-        let force = (attackBaseForce + (attackDamage * 0.5)) * (1.0 + (this.amount * Knockbacker.scalingFactor));
+        let force = (attackBaseForce + (attackDamage * 0.5)) * (1.0 + (this._amount * Knockbacker._scalingFactor));
 
         // Apply launch multiplier if over the threshold
-        if (this.amount > Knockbacker.launchThreshold) {
-            force *= Knockbacker.launchMultiplier;
+        if (this._amount > Knockbacker._launchThreshold) {
+            force *= Knockbacker._launchMultiplier;
         }
 
         return force;
+    }
+
+    /**
+     * Reset the accumulated knockback power amount
+     */
+    public reset() {
+        this._amount = 0;
     }
 }
