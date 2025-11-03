@@ -46,6 +46,7 @@ export class AudioServer implements Resource {
      * @param urls A list of asset URLs to preload (e.g., "/assets/jump.wav").
      */
     public async preload(urls: string[]) {
+        if (this.preloaded) return;
         console.log(`[AudioServer] Preloading ${urls.length} audio assets...`);
         const promises = urls.map(url => this.load(url));
         await Promise.all(promises);

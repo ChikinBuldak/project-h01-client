@@ -1,6 +1,6 @@
-import type { Vector } from "matter-js";
-import type { Component } from "../../types/ecs";
-import type { Input } from "../../types/input";
+import type { Component } from "@/types/ecs";
+import type { Input } from "@/types";
+import type { PlayerPhysicsState } from "@/types";
 
 
 /**
@@ -12,11 +12,6 @@ export class LocalPlayerTag implements Component{}
  * Defines the client-side physics state,
  * used for reconciliation.
  */
-export interface PlayerPhysicsState {
-    position: Vector;
-    velocity: Vector;
-    isGrounded: boolean;
-}
 
 
 /**

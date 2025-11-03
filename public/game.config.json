@@ -10,11 +10,17 @@
     ]
   },
   "player": {
-    "width": 192,
-    "height": 192,
+    "width": 64 ,
+    "height": 130,
+    "frameWidth": 191,
+    "frameHeight": 130,
     "sprite": "/assets/player-spritesheet.png",
     "animations": {
-      "idle": { "row": 0, "frameCount": 7, "frameDuration": 0.2 }
+      "idle": {
+        "row": 0,
+        "frameCount": 7,
+        "frameDuration": 0.2
+      }
     }
   },
   "scene": {
@@ -28,8 +34,18 @@
       "mockMove": true
     },
     "ground": [
-      { "x": 860, "y": 500, "width": 960, "height": 50 },
-      { "x": 800, "y": 200, "width": 200, "height": 30 }
+      {
+        "x": 860,
+        "y": 500,
+        "width": 960,
+        "height": 50
+      },
+      {
+        "x": 800,
+        "y": 200,
+        "width": 200,
+        "height": 30
+      }
     ]
   }
 }

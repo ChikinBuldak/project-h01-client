@@ -1,10 +1,8 @@
-import { Entity, type System, World } from "../../types/ecs";
-import { isNone, isSome, unwrapOpt } from "../../types/option";
-import { NetworkStateBuffer } from "../components";
-import { DebugCollider, DebugPhysicsState } from "../components/DebugCollider";
-import { StaticMapObjectTag } from "../components/StaticMapObjectTag";
-import { WorldFactory } from "../factories/WorldFactory";
-import { NetworkResource } from "../resources/NetworkResource";
+import { Entity, type System, World } from "../../../types/ecs";
+import { isNone, isSome, unwrapOpt } from "../../../types/option";
+import { NetworkStateBuffer, StaticMapObjectTag } from "../../components";
+import { WorldFactory } from "../../factories/WorldFactory";
+import { NetworkResource } from "../../resources/NetworkResource";
 import { ReconciliationSystem } from "./ReconciliationSystem";
 
 /**

@@ -1,16 +1,9 @@
 import Matter from "matter-js";
 import { Entity } from "../../types/ecs";
-import { AnimationController, PlayerState, RigidBody, Sprite } from "../components";
-import { DomMaterial } from "../components/DomMaterial";
-import { LocalPlayerTag, PredictionHistory } from "../components/LocalPlayerTag";
-import { Mesh2D } from "../components/Mesh2D";
-import { NetworkStateBuffer } from "../components/NetworkStateBuffer";
-import { Transform } from "../components/Transform";
-import { GroundCheckRay } from "../components/GroundCheckRay";
-import { Knockbacker } from "../components/Knockbacker";
+import { AnimationController, DomMaterial, GroundCheckRay, LocalPlayerTag, Mesh2D, NetworkStateBuffer, PlayerState, PredictionHistory, RigidBody, Sprite, Transform } from "../components";
+import { Knockbacker } from "../components/character/Knockbacker";
 import type { GameConfig } from "@/types/config";
-import { Hurtbox } from "../components/Hurtbox";
-
+import { Hurtbox } from "../components/character/Hurtbox";
 
 
 /**
@@ -72,12 +65,13 @@ export class CharacterFactory {
         styles: Partial<CSSStyleDeclaration>,
     }) {
 
-        const { x: xPos, y: yPos, width = 20, height = 20, isPlayer = false, styles } = props;
+        const { x: xPos, y: yPos, width = 20, height = 20, styles } = props;
         const body = Matter.Bodies.rectangle(xPos, yPos, width, height, {
             inertia: Infinity,
             friction: 0.1,
             restitution: 0.0,
-            collisionFilter: { group: -1 }
+            collisionFilter: { group: -1 },
+            mass: 60
         });
         const entity = new Entity()
             .addComponent(new Transform(xPos, yPos, 0))
@@ -115,7 +109,12 @@ export class CharacterFactory {
         }
         entity
             .addComponent(new Sprite(config.player.sprite))
-            .addComponent(new AnimationController("idle", config.player.animations));
+            .addComponent(new AnimationController(
+                "idle",
+                config.player.animations,
+                config.player.frameWidth,
+                config.player.frameHeight)
+            );
 
         return entity;
     }

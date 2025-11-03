@@ -1,7 +1,7 @@
+import { PlayBgm, PlaySoundEffect } from "@/ecs/components";
+import { AudioServer } from "@/ecs/resources";
 import { isNone, type System, unwrapOpt, World } from "@/types";
-import { AudioServer } from "../resources/AudioServer";
-import { PlaySoundEffect } from "../components/PlaySoundEffect";
-import { PlayBgm } from "../components/PlayBgm";
+
 
 /**
  * Listens for "PlaySoundEffect" event components and plays

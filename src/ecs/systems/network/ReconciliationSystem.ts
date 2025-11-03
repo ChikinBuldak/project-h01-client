@@ -1,11 +1,10 @@
 import Matter from "matter-js";
-import { Entity, type System, World } from "../../types/ecs";
-import type { PlayerStateMessage, TransformState } from "../../types/network";
-import { PlayerState, RigidBody } from "../components";
-import { LocalPlayerTag, PredictionHistory } from "../components/LocalPlayerTag";
-import { PlayerMovementSystem } from "./PlayerMovementSystem";
-import { isNone, isSome, unwrapOpt } from "../../types/option";
-import { Time } from "../resources";
+import {type System, World } from "@/types/ecs";
+import type { PlayerStateMessage} from "@/types/network";
+import { PlayerState, RigidBody, LocalPlayerTag, PredictionHistory } from "@/ecs/components";
+import { PlayerMovementSystem } from "../core/PlayerMovementSystem";
+import { isNone, isSome, unwrapOpt } from "@/types/option";
+import { Time } from "@/ecs/resources";
 
 const POSITION_EPSILON = 1.0;
 const VELOCITY_EPSILON = 0.1
@@ -45,7 +44,7 @@ export class ReconciliationSystem implements System {
 
         // calculate error
         const posError = Matter.Vector.magnitude(
-            Matter.Vector.sub(clientState.state.position, serverState.transform.position)
+            Matter.Vector.sub(clientState.state.transform.position, serverState.transform.position)
         );
         const velError = Matter.Vector.magnitude(
             Matter.Vector.sub(clientState.state.velocity, serverState.velocity)

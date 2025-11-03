@@ -1,9 +1,9 @@
 import { isSome, type System, type World } from "@/types";
-import { PhysicsResource } from "../resources/PhysicsResource";
-import { DomResource } from "../resources/DomResource";
-import { NetworkResource } from "../resources";
-import { Despawn } from "../components/Despawn";
-import { RigidBody } from "../components";
+import { PhysicsResource } from "@/ecs/resources/PhysicsResource";
+import { DomResource } from "@/ecs/resources/DomResource";
+import { NetworkResource } from "@/ecs/resources";
+import { Despawn } from "@/ecs/components/tag/Despawn";
+import { RigidBody } from "@/ecs/components";
 
 export class GarbageCollectorSystem implements System {
     update(world: World): void {

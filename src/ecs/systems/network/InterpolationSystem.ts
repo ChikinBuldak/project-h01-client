@@ -1,13 +1,11 @@
-import { Entity, type System, World } from "../../types/ecs";
-import type { PlayerPhysicsState, PlayerStateMessage, TransformState } from "../../types/network";
-import { LocalPlayerTag } from "../components";
-import { NetworkStateBuffer } from "../components/NetworkStateBuffer";
-import { intoTransform, Transform } from "../components/Transform";
+import {type System, World } from "../../../types/ecs";
+import type { PlayerPhysicsState} from "@/types/network";
+import { LocalPlayerTag, NetworkStateBuffer, Transform  } from "@/ecs/components";
 type Snapshot = { tick: number, state: PlayerPhysicsState };
 
 export class InterpolationSystem implements System {
 
-    public update(world: World): void {
+    public update(_world: World): void {
         // Interpolation logic runs in the render loop
     }
 

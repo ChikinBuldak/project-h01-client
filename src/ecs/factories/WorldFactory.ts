@@ -1,7 +1,6 @@
 import Matter from "matter-js";
 import { Entity } from "../../types/ecs";
 import { DomMaterial, Mesh2D, RigidBody, StaticMapObjectTag, Transform } from "../components";
-import { Collider } from "../components/Collider";
 
 interface createGroundProps {
     x: number,
@@ -24,12 +23,6 @@ export class WorldFactory {
                         group: 0
                     }
                 })
-            }))
-            .addComponent(new Collider({
-                shape: 'rectangle',
-                width,
-                height,
-                isSensor: false,
             }))
             .addComponent(new Mesh2D(
                 width, height

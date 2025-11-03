@@ -1,18 +1,13 @@
 import Matter from "matter-js";
-import { Entity, type System, World } from "../../types/ecs";
-import { RigidBody } from "../components/RigidBody";
-import { Transform } from "../components/Transform";
-import { LocalPlayerTag } from "../components/LocalPlayerTag";
-import { Mesh2D } from "../components/Mesh2D";
-import { PlayerState } from '../components/PlayerState';
-import { Collider } from "../components";
-import { isNone, isSome } from "../../types/option";
-import { GroundCheckRay } from "../components/GroundCheckRay";
-import { Time } from "../resources/Time";
-import { PhysicsResource } from "../resources/PhysicsResource";
-import { Hitbox } from "../components/Hitbox";
-import { Hurtbox } from "../components/Hurtbox";
-import { CollisionEvent } from "../events/CollisionEvent";
+import { Entity, type System, World } from "../../../types/ecs";
+
+import { Time } from "../../resources/Time";
+import { PhysicsResource } from "../../resources/PhysicsResource";
+import { Hitbox } from "../../components/character/Hitbox";
+import { Hurtbox } from "../../components/character/Hurtbox";
+import { CollisionEvent } from "../../events/CollisionEvent";
+import { RigidBody, PlayerState, GroundCheckRay, Transform } from "@/ecs/components";
+import { isNone, isSome } from "@/types";
 
 export class PhysicsSystem implements System {
     /** A guard to ensure we only set up event listeners once. */

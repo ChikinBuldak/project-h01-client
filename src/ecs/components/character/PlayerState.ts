@@ -1,5 +1,5 @@
 import { clamp } from "@/utils";
-import type { Component } from "../../types/ecs";
+import type { Component } from "@/types/ecs";
 
 type Direction = 1 | -1;
 

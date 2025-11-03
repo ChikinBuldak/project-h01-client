@@ -15,7 +15,7 @@ import { isSome } from '@/types';
 import type { GameConfig } from '@/types/config';
 import { PhysicsResource } from './resources/PhysicsResource';
 import { DomResource } from './resources/DomResource';
-import { GarbageCollectorSystem } from './systems/GarbageCollectorSystem';
+import { GarbageCollectorSystem } from './systems/others/GarbageCollectorSystem';
 
 /**
  * Adds all necessary resources to the world.

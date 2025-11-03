@@ -1,12 +1,11 @@
 import Matter from "matter-js";
-import { type System, World } from "../../types/ecs";
-import { RigidBody } from "../components";
-import { LocalPlayerTag, PredictionHistory, type PlayerPhysicsState } from "../components/LocalPlayerTag";
-import { PlayerState } from "../components/PlayerState";
-import { NetworkResource, Time } from "../resources";
-import { isNone, isSome, unwrapOpt, type Input, type PlayerInput } from "@/types";
-import { InputEvent } from "../events/InputEvent";
-import { AttackRequest } from "../components/AttackRequest";
+import { type System, World } from "../../../types/ecs";
+import { LocalPlayerTag, PlayerState, PredictionHistory, RigidBody } from "../../components";
+
+import { NetworkResource, Time } from "../../resources";
+import { isNone, isSome, unwrapOpt, type Input, type PlayerInput, type PlayerPhysicsState } from "@/types";
+import { InputEvent } from "../../events/InputEvent";
+import { AttackRequest } from "../../components/character/AttackRequest";
 // import { Transform } from "../components/Transform";
 
 const PLAYER_SPEED = 5;
@@ -18,7 +17,7 @@ const DODGE_COOLDOWN = 1.0;
 export class PlayerMovementSystem implements System {
     public cloneState(rb: RigidBody, state: PlayerState): PlayerPhysicsState {
         return {
-            position: { ...rb.body.position },
+            transform: { position: { ...rb.body.position }, rotation: rb.body.angle * (180 / Math.PI) },
             velocity: { ...rb.body.velocity },
             isGrounded: state.isGrounded,
         };

@@ -1,9 +1,9 @@
 import { type System, World } from "@/types/ecs";
 import { InputManager, KeyCode } from "@/types/input";
 import type { Input} from "@/types/network";
-import { LocalPlayerTag} from "@/ecs/components/LocalPlayerTag";;
-import { InputEvent } from "../events/InputEvent";
-import { AttackRequest } from "../components/AttackRequest";
+import { LocalPlayerTag} from "@/ecs/components";
+import { InputEvent } from "../../events/InputEvent";
+import { AttackRequest } from "../../components/character/AttackRequest";
 
 export class InputSystem implements System {
     private currentTick = 0;

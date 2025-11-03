@@ -30,10 +30,20 @@ export class AnimationController implements Component {
     /** A timer used to track frame duration. */
     public frameTimer: number;
 
-    constructor(defaultState: string, states: Record<string, AnimationClip>) {
+    public frameWidth: number;
+    public frameHeight: number;
+
+    constructor(
+        defaultState: string, 
+        states: Record<string, AnimationClip>,
+        frameWidth: number,
+        frameHeight: number
+    ) {
         this.states = new Map(Object.entries(states));
         this.currentState = defaultState;
         this.currentFrame = 0;
         this.frameTimer = 0;
+        this.frameWidth = frameWidth;
+        this.frameHeight = frameHeight;
     }
 }

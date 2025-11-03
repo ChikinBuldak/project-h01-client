@@ -1,8 +1,7 @@
-import { Entity, type System, World } from "../../types/ecs";
-import { Transform } from "../components/Transform";
-import { Hitbox, Mesh2D} from "../components";
-import { isNone, isSome, unwrapOpt } from "../../types/option";
-import { DomResource } from "../resources";
+import { Entity, type System, World } from "../../../types/ecs";
+import { Hitbox, Mesh2D, Transform} from "../../components";
+import { isNone, isSome, unwrapOpt } from "../../../types/option";
+import { DomResource } from "../../resources";
 
 /**
  * This system draws wireframe colliders and other debug info.

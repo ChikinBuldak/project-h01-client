@@ -1,5 +1,5 @@
 import type { Component } from "../../types/ecs";
-import type { PlayerPhysicsState, PlayerStateMessage, TransformState} from "../../types/network";
+import type { PlayerPhysicsState} from "../../types/network";
 
 export class NetworkStateBuffer implements Component {
     public buffer: {tick: number, state: PlayerPhysicsState}[] = [];

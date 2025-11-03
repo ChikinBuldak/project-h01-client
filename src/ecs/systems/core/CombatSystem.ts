@@ -1,14 +1,14 @@
 import { Entity, isNone, isSome, unwrapOpt, type System, type World } from "@/types";
-import { Time } from "../resources";
-import { AttackRequest } from "../components/AttackRequest";
-import { Mesh2D, PlayerState, RigidBody, Transform } from "../components";
-import { Hitbox } from "../components/Hitbox";
+import { Time } from "../../resources";
+import { AttackRequest } from "../../components/character/AttackRequest";
+import { Mesh2D, PlayerState, RigidBody, Transform } from "../../components";
+import { Hitbox } from "../../components/character/Hitbox";
 import Matter from "matter-js";
-import { PhysicsResource } from "../resources/PhysicsResource";
-import { CollisionEvent } from "../events/CollisionEvent";
-import { Hurtbox } from "../components/Hurtbox";
-import { Knockbacker } from "../components/Knockbacker";
-import { Despawn } from "../components/Despawn";
+import { PhysicsResource } from "../../resources/PhysicsResource";
+import { CollisionEvent } from "../../events/CollisionEvent";
+import { Hurtbox } from "../../components/character/Hurtbox";
+import { Knockbacker } from "../../components/character/Knockbacker";
+import { Despawn } from "../../components/tag/Despawn";
 
 export class CombatSystem implements System {
     update(world: World): void {

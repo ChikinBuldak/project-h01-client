@@ -1,12 +1,8 @@
-import { Entity, type System, World } from "../../types/ecs";
-import { LocalPlayerTag } from '../components/LocalPlayerTag';
-import { DomMaterial } from "../components/DomMaterial";
-import { Mesh2D } from "../components/Mesh2D";
-import { Transform } from "../components/Transform";
-import { AssetServer, Time } from "../resources";
+import {type System, World } from "@/types/ecs";
+import { AssetServer} from "@/ecs/resources";
 import { isNone, isSome, unwrapOpt } from "@/types";
-import { AnimationController, PlayerState, Sprite } from "../components";
-import { DomResource } from "../resources/DomResource";
+import { AnimationController, DomMaterial, LocalPlayerTag, Mesh2D, PlayerState, Sprite, Transform } from "@/ecs/components";
+import { DomResource } from "@/ecs/resources/DomResource";
 
 export class DomRenderSystem implements System {
 
@@ -115,7 +111,7 @@ export class DomRenderSystem implements System {
                 el.style.left = `${-mesh.width / 2}px`;
                 el.style.top = `${-mesh.height / 2}px`;
 
-                // --- 2a. Apply Sprite material (if it exists) ---
+                // Apply Sprite material (if it exists)
                 if (isSome(spriteOpt) && assetServer) {
                     const image = assetServer.get(spriteOpt.value.assetHandle);
                     if (image) {
@@ -123,7 +119,7 @@ export class DomRenderSystem implements System {
                         el.style.backgroundRepeat = 'no-repeat';
                         el.style.imageRendering = 'pixelated';
                     }
-                    // --- 2b. Apply DomMaterial (if no sprite) ---
+                    // Apply DomMaterial (if no sprite)
                 } else if (isSome(materialOpt)) {
                     const material = unwrapOpt(materialOpt);
                     el.className = material.className;
@@ -144,8 +140,8 @@ export class DomRenderSystem implements System {
 
                 const clip = anim.states.get(anim.currentState);
                 if (clip) {
-                    backgroundPosX = `-${anim.currentFrame * mesh.width}px`;
-                    backgroundPosY = `-${clip.row * mesh.height}px`;
+                    backgroundPosX = `-${anim.currentFrame * anim.frameWidth}px`;
+                    backgroundPosY = `-${clip.row * anim.frameHeight}px`;
                 }
 
                 if (state.faceDirection === -1) {

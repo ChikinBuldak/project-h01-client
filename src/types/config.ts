@@ -8,6 +8,8 @@ export interface GameConfig {
     player: {
         width: number;
         height: number;
+        frameWidth: number;
+        frameHeight: number;
         sprite: string;
         animations: Record<string, {
             row: number;

@@ -55,3 +55,87 @@ export function unwrapOpt<T>(opt: Option<T>): T | null {
 
 export type Nullable<T> = T | null;
 export type Undefinable<T> = T | undefined;
+
+/**
+ * Converts a nullable or undefined value into either:
+ * - the raw value (T) if non-nullish, or
+ * - the singleton `none` if null or undefined.
+ *
+ * This allows you to access the value directly without `.value`.
+ */
+export function ofNullable<T>(value: T | null | undefined): T | None {
+  return value !== null && value !== undefined ? value : none;
+}
+
+/* Option wrapper (for method chaining support) */
+
+export class OptionWrapper<T> {
+  public readonly inner: Some<T> | None;
+  private constructor(inner: Some<T> | None) {
+    this.inner = inner;
+  }
+
+  /** Create Option from nullable or undefined value */
+  static ofNullable<T>(value: T | null | undefined): OptionWrapper<T> {
+    return new OptionWrapper(
+      value !== null && value !== undefined ? some(value) : none
+    );
+  }
+
+  /** Create Option from a raw value (always Some) */
+  static some<T>(value: T): OptionWrapper<T> {
+    return new OptionWrapper(some(value));
+  }
+
+  /** Singleton None */
+  static none<T>(): OptionWrapper<T> {
+    return new OptionWrapper<T>(none);
+  }
+
+  /** Check if Option contains a value */
+  isSome(): this is OptionWrapperWithValue<T> {
+    return this.inner.tag === "some";
+  }
+
+  /** Check if Option is empty */
+  isNone(): this is OptionWrapperNone<T> {
+    return this.inner.tag === "none";
+  }
+
+  /** Map the value inside if Some */
+  map<U>(fn: (t: T) => U): OptionWrapper<U> {
+    return this.isSome()
+      ? new OptionWrapper(some(fn(this.inner.value)))
+      : OptionWrapper.none<U>();
+  }
+
+  /** Flat map (monadic bind) */
+  flatMap<U>(fn: (t: T) => OptionWrapper<U>): OptionWrapper<U> {
+    return this.isSome() ? fn(this.inner.value) : OptionWrapper.none<U>();
+  }
+
+  /** Return fallback value if None */
+  orElse(fallback: T): T {
+    return this.isSome() ? this.inner.value : fallback;
+  }
+
+  /** Unwrap to raw value or null */
+  unwrap(): T | null {
+    return this.isSome() ? this.inner.value : null;
+  }
+
+  /** Get the raw value or throw */
+  expect(message: string): T {
+    if (this.isSome()) return this.inner.value;
+    throw new Error(message);
+  }
+
+  get value(): T {
+    if (this.isSome()) return this.inner.value;
+    throw new Error("Tried to access value of None");
+  }
+}
+
+/** Helper types for correct narrowing */
+export type OptionWrapperWithValue<T> = OptionWrapper<T> & { inner: Some<T> };
+export type OptionWrapperNone<T> = OptionWrapper<T> & { inner: None };
