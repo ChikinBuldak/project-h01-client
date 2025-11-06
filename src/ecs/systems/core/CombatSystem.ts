@@ -22,7 +22,10 @@ export class CombatSystem implements System {
 
         this.tickComboTimers(world, dt);
 
-        const attackRequests = world.queryWithEntityAndFilter([CharacterTag, PlayerState], [AttackRequest, RigidBody]);
+        const attackRequests = world.queryWithEntityAndFilter({
+            returnComponents: [CharacterTag, PlayerState], 
+            filterComponents: [AttackRequest, RigidBody]
+        });
         for (const [entity, tag, state] of attackRequests) {
             if (state.isBusy) {
                 entity.removeComponent(AttackRequest);

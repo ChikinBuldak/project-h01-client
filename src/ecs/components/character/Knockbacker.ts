@@ -13,7 +13,7 @@ export class Knockbacker implements Component {
     /** * The percentage at which the launch multiplier kicks in.
      * (e.g., 80 = 80%)
      */
-    private static readonly _launchThreshold = 80;
+    private static readonly _launchThreshold = 150;
     /**
      * The multiplier applied to knockback once the threshold is passed.
      */

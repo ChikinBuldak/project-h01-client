@@ -27,7 +27,7 @@ export class WorldFactory {
             .addComponent(RigidBody.createFromFn(() => {
                 return Matter.Bodies.rectangle(x, y, width, height, {
                     isStatic: true,
-                    friction: 0.5,
+                    friction: 1,
                     collisionFilter: {
                         group: 0
                     }

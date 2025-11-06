@@ -15,9 +15,9 @@ interface RedCombatActionMap extends CombatActionMap {
  * Action handler for character "Red"
  */
 export class RedCombatAction implements ICombatAction<RedCombatActionMap> {
-    private static HITBOX_SEQ_1 = { width: 30, height: 20, damage: 5, baseForce: 2, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15 };
-    private static HITBOX_SEQ_2 = { width: 30, height: 20, damage: 5, baseForce: 2, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15 };
-    private static HITBOX_SEQ_3 = { width: 35, height: 25, damage: 8, baseForce: 8, trajectory: { x: 1, y: -0.5 }, lifetime: 0.2 };
+    private static HITBOX_SEQ_1 = { width: 30, height: 20, damage: 3, baseForce: 1, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15, moveToFrontDistance: 5 };
+    private static HITBOX_SEQ_2 = { width: 30, height: 20, damage: 3, baseForce: 1, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15, moveToFrontDistance: 5};
+    private static HITBOX_SEQ_3 = { width: 35, height: 25, damage: 6, baseForce: 5, trajectory: { x: 1, y: -0.75 }, lifetime: 0.2, moveToFrontDistance: 10 };
 
     hardAttack: (
         entity: Entity,
@@ -108,8 +108,43 @@ export class RedCombatAction implements ICombatAction<RedCombatActionMap> {
         .addComponent(new Transform(hitboxPos.x, hitboxPos.y, 0))
         .addComponent(new Mesh2D(hitboxData.width, hitboxData.height));
 
+        this.applyForwardMovement(rb, playerState, hitboxData.moveToFrontDistance);
+
         world.addEntity(hitboxEntity);
     }
     onAirAttack?: undefined;
+
+        /**
+     * Applies forward movement to the entity based on the moveToFrontDistance
+     * @param entity The entity to move
+     * @param rb The rigid body component
+     * @param playerState The player state component
+     * @param moveDistance The distance to move forward
+     */
+    private applyForwardMovement(
+        rb: RigidBody, 
+        playerState: PlayerState, 
+        moveDistance: number
+    ): void {
+        if (moveDistance <= 0) return;
+
+        // Calculate the movement vector based on face direction
+        const moveVector = {
+            x: playerState.faceDirection * moveDistance,
+            y: 0
+        };
+
+        // Apply the movement to the rigid body
+        Matter.Body.translate(rb.body, moveVector);
+
+        const impulseStrength = 0.3;
+        Matter.Body.applyForce(rb.body, rb.body.position, {
+            x: playerState.faceDirection * impulseStrength,
+            y: 0
+        });
+
+        // Log the movement for debugging
+        console.log(`[Combat] Applied forward movement: ${moveDistance} units in direction ${playerState.faceDirection}`);
+    }
 
 }

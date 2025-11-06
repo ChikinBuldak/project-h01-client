@@ -2,10 +2,10 @@ import { type System, World } from "@/types/ecs";
 import { InputManager, KeyCode } from "@/types/input";
 import type { Input} from "@/types/network";
 import { LocalPlayerTag} from "@/ecs/components";
-import { InputEvent } from "../../events/InputEvent";
-import { AttackRequest } from "../../components/character/AttackRequest";
+import { InputEvent } from "@/ecs/events/InputEvent";
+import { AttackRequest } from "@/ecs/components/character/AttackRequest";
 
-export class InputSystem implements System {
+export class InGameInputSystem implements System {
     private currentTick = 0;
 
     private prevJumpState = false;
@@ -43,7 +43,7 @@ export class InputSystem implements System {
         world.sendEvent(new InputEvent(this.currentTick, inputPayload));
 
         if (didAttack) {
-            const playerQuery = world.queryWithEntityAndFilter([], [LocalPlayerTag]);
+            const playerQuery = world.queryWithEntityAndFilter({returnComponents: [], filterComponents: [LocalPlayerTag]});
             if (playerQuery.length > 0) {
                 const [playerEntity] = playerQuery[0];
                 playerEntity.addComponent(new AttackRequest());

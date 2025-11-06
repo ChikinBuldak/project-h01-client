@@ -63,6 +63,26 @@ export const zPlayerStateMessage = z.object({
    tick: z.number(),
    state: zPlayerPhysicsState, // Can re-use the same state shape
   });
+
+  /**
+ * The "welcome packet" sent once when a player joins.
+ * Tells the client its own ID, the server's current tick,
+ * and the state of all other entities.
+ */
+export const zWorldInitMessage = z.object({
+  type: z.literal("world_init"),
+  /** The entity ID the server has assigned to you. */
+  yourId: z.string(),
+  /** The server's current tick. Use this to sync your game loop. */
+  serverTick: z.number(),
+  /** A list of all other entities currently in the game. */
+  entities: z.array(z.object({
+      id: z.string(),
+      state: zPlayerPhysicsState, // Use the full physics state
+  })),
+});
+
+
   
   // Union schema for all possible client messages
   export const zClientMessage = z.discriminatedUnion("type", [
@@ -88,6 +108,7 @@ export const zMapLoadMessage = z.object({
   export type PlayerPhysicsState = z.infer<typeof zPlayerPhysicsState>;
   export type EntityStateMessage = z.infer<typeof zEntityStateMessage>;
   export type PlayerStateMessage = z.infer<typeof zPlayerStateMessage>;
+  export type WorldInitMessage = z.infer<typeof zWorldInitMessage>;
   export type MapObject = z.infer<typeof zMapObject>;
   export type MapLoadMessage = z.infer<typeof zMapLoadMessage>;
   
@@ -132,6 +153,7 @@ const zReconciliation = z.object({
 
 // Union schema for all possible server messages
 export const zServerMessage = z.discriminatedUnion("type", [
+    zWorldInitMessage,
     zPlayerStateMessage,
     zEntityStateMessage,
     zMapLoadMessage,

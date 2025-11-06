@@ -1,24 +1,22 @@
 import {
-    DomRenderSystem, InputSystem, InterpolationSystem,
+    DomRenderSystem, InterpolationSystem,
     PlayerMovementSystem, ReconciliationSystem, PhysicsSystem,
     NetworkReceiveSystem, AudioSystem,
     AnimationSystem,
     CombatSystem,
-    DebugRenderSystem
+    DebugRenderSystem,
 } from './systems';
 import { NetworkStateBuffer} from './components';
 import { CharacterFactory } from './factories/CharacterFactory';
 import { WorldFactory } from './factories/WorldFactory';
 import { Entity, type Resource, type System } from '../types/ecs';
-import { NetworkResource, Time, type NetworkDiscordJoinData } from './resources';
+import { Time} from './resources';
 import { isSome } from '@/types';
 import type { GameConfig } from '@/types/config';
-import { PhysicsResource } from './resources/PhysicsResource';
-import { DomResource } from './resources/DomResource';
 import { GarbageCollectorSystem } from './systems/others/GarbageCollectorSystem';
 import { PlayerLifecycleSystem } from './systems/core/PlayerLifecycleSystem';
-import { CombatResource } from './resources/CombatResource';
 import { LogSystem } from './systems/others/LogSystem';
+import { InGameInputSystem } from './systems/core/input/InGameInputSystem';
 
 /**
  * Adds all necessary resources to the world.
@@ -27,9 +25,6 @@ export function setupResources(
     addResource: (res: Resource) => void,
 ) {
     addResource(new Time());
-    addResource(new PhysicsResource());
-    addResource(new DomResource());
-    addResource(new CombatResource());
 }
 
 /**
@@ -41,7 +36,7 @@ export function setupSystems(
 ) {
     // Core systems (always run)
     addSystem(new GarbageCollectorSystem());
-    addSystem(new InputSystem());
+    addSystem(new InGameInputSystem());
     addSystem(new PlayerMovementSystem());
     addSystem(new DomRenderSystem());
     addSystem(new PhysicsSystem());

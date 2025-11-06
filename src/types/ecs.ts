@@ -91,7 +91,7 @@ type SystemCtor<T extends System> = new (...args: any[]) => T;
 
 export class World {
     private entities = new Map<number, Entity>();
-    private systems: System[] = [];
+    private systems = new Map<Function, System>();
     private resources = new Map<Function, Resource>();
     /** A map holding queues for all events sent this frame. */
     private events: Map<Function, EventECS[]> = new Map();
@@ -105,8 +105,11 @@ export class World {
         return this;
     }
     addSystem(system: System): this {
-        this.systems.push(system);
+        this.systems.set(system.constructor, system);
         return this;
+    }
+    removeSystem(systemCtor: Function): boolean {
+        return this.systems.delete(systemCtor);
     }
     update(deltaTime: number): void {
         this.clearEvents();
@@ -118,7 +121,7 @@ export class World {
 
         // --- 2. Run all systems ---
         // Systems can now query the Time resource
-        for (const system of this.systems) {
+        for (const system of this.systems.values()) {
             system.update(this);
         }
     }
@@ -127,7 +130,7 @@ export class World {
         if (isSome(time)) {
             time.value.alpha = alpha;
         }
-        for (const system of this.systems) {
+        for (const system of this.systems.values()) {
             if (system.render) {
                 system.render(this);
             }
@@ -151,7 +154,7 @@ export class World {
         return matches;
     }
     getSystem<T extends System>(ctor: SystemCtor<T>): Option<T> {
-        const system = this.systems.find((s) => s instanceof ctor);
+        const system = this.systems.get(ctor);
         return system ? some(system as T) : none;
     }
     addResource(resource: Resource): this {
@@ -193,7 +196,7 @@ export class World {
     private clearEvents() {
         this.events.clear();
     }
-    
+
 
     /**
      * Queries all entities that have *all* required components.
@@ -260,9 +263,12 @@ export class World {
         R extends ReadonlyArray<ComponentCtor<Component>>,
         F extends ReadonlyArray<ComponentCtor<Component>>
     >(
-        componentsToReturn: [...R],
-        componentsToFilter: [...F]
+        props: {
+            returnComponents: [...R],
+            filterComponents: [...F]
+        }
     ): Array<{ [K in keyof R]: ComponentInstance<R[K]> }> {
+        const { returnComponents: componentsToReturn, filterComponents: componentsToFilter } = props;
         const matches: Array<{ [K in keyof R]: ComponentInstance<R[K]> }> = [];
 
         // Combine all types to check for existence
@@ -298,12 +304,12 @@ export class World {
     queryWithEntityAndFilter<
         R extends ReadonlyArray<ComponentCtor<Component>>,
         F extends ReadonlyArray<ComponentCtor<Component>>
-    >(
-        componentsToReturn: [...R],
-        componentsToFilter: [...F]
-    ): Array<[Entity, ...{ [K in keyof R]: ComponentInstance<R[K]> }]> {
+    >(props: {
+        returnComponents: [...R],
+        filterComponents: [...F]
+    }): Array<[Entity, ...{ [K in keyof R]: ComponentInstance<R[K]> }]> {
         const matches: Array<[Entity, ...{ [K in keyof R]: ComponentInstance<R[K]> }]> = [];
-
+        const { returnComponents: componentsToReturn, filterComponents: componentsToFilter } = props;
         const allTypes = [...componentsToReturn, ...componentsToFilter];
 
         for (const entity of this.entities.values()) {

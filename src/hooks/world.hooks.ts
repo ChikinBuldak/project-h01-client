@@ -1,37 +1,44 @@
-import { useWorldStore } from "../stores/world.stores";
+import { AppStateResource } from "@/ecs/resources/state";
+import { useWorldStore } from "../stores/world.store";
 import { useEffect, useRef } from "react";
+import { isSome, unwrapOpt } from "@/types";
 
 let SimulationHz = 60;
 export const FIXED_TIMESTEP = 1000 / SimulationHz;
 
 export const useGameLoop = () => {
-    const updateWorld = useWorldStore((state) => state.update);
-    const renderWorld = useWorldStore((state)=>state.render);
+    const world = useWorldStore((s) => s.world);
 
     const lastTimeRef = useRef(performance.now());
     const accumulatorRef = useRef(0);
+    const rafRef = useRef(0);
 
     useEffect(() => {
         let frameId: number;
         const tick = (currentTime: number) => {
+            rafRef.current = requestAnimationFrame(tick);
             const deltaTime = currentTime - lastTimeRef.current;
             lastTimeRef.current = currentTime;
             accumulatorRef.current += deltaTime;
 
+            const appState = world.getResource(AppStateResource);
+            if (isSome(appState)) {
+                unwrapOpt(appState).handleTransition(world);
+            }
+
             while (accumulatorRef.current >= FIXED_TIMESTEP) {
-                updateWorld(FIXED_TIMESTEP);
+                world.update(FIXED_TIMESTEP);
                 accumulatorRef.current -= FIXED_TIMESTEP;
             }
 
             const alpha = accumulatorRef.current / FIXED_TIMESTEP;
-            renderWorld(alpha);
-            frameId = requestAnimationFrame(tick);
+            world.render(alpha);
         }
 
-        frameId = requestAnimationFrame(tick);
+        rafRef.current = requestAnimationFrame(tick);
 
         return () => {
-            cancelAnimationFrame(frameId);
+            cancelAnimationFrame(rafRef.current);
         }
-    }, [updateWorld, renderWorld])
+    }, [world])
 }

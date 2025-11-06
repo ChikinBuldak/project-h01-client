@@ -1,13 +1,11 @@
 import Matter from "matter-js";
-import { type System, World } from "../../../types/ecs";
-import { LocalPlayerTag, PlayerState, PredictionHistory, RigidBody } from "../../components";
+import { type System, World } from "@/types/ecs";
+import { LocalPlayerTag, PlayerState, PredictionHistory, RigidBody } from "@/ecs/components";
 
-import { NetworkResource, Time } from "../../resources";
+import { NetworkResource, Time } from "@/ecs/resources";
 import { isNone, isSome, unwrapOpt, type Input, type PlayerInput, type PlayerPhysicsState } from "@/types";
-import { InputEvent } from "../../events/InputEvent";
-import { AttackRequest } from "../../components/character/AttackRequest";
-// import { Transform } from "../components/Transform";
-import { CombatState } from '../../components/character/combat/CombatState';
+import { InputEvent } from "@/ecs/events/InputEvent";
+import { AttackRequest } from "@/ecs/components/character/AttackRequest";
 
 const PLAYER_SPEED = 5;
 const JUMP_FORCE = 12;
@@ -31,10 +29,10 @@ export class PlayerMovementSystem implements System {
         // get delta time from resource
         const dt = unwrapOpt(timeRes).fixedDeltaTime / 1000;
 
-        const localPlayerQuery = world.queryWithEntityAndFilter(
-            [RigidBody, PlayerState, PredictionHistory],
-            [LocalPlayerTag],
-        );
+        const localPlayerQuery = world.queryWithEntityAndFilter({
+            returnComponents: [RigidBody, PlayerState, PredictionHistory],
+            filterComponents: [LocalPlayerTag],
+        });
         if (localPlayerQuery.length === 0) return;
 
         const [playerEntity, rb, state, history] = localPlayerQuery[0];

@@ -191,8 +191,7 @@ export class NetworkResource implements Resource {
         channel.onerror = (error) => {
             console.error("[NetworkResource] Data Channel Error:", error);
         };
-
-        // --- This is the new "onmessage" for *game data* ---
+        
         channel.onmessage = (event) => {
             const parseResult = tryCatch(() => JSON.parse(event.data));
             if (isErr(parseResult)) {
