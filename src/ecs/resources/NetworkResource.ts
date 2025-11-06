@@ -81,7 +81,6 @@ export class NetworkResource implements Resource {
                 peer_type: 'player',
                 user_id: this.userId,
             });
-            console.log("[NetworkResource] Connected.");
         };
 
         ws.onmessage = (event) => {

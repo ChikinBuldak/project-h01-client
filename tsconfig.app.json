@@ -6,7 +6,8 @@
     "lib": [
       "ES2022",
       "DOM",
-      "DOM.Iterable"
+      "DOM.Iterable",
+      "WebWorker"
     ],
     "module": "ESNext",
     "types": [
@@ -30,11 +31,15 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "src/*"
+        "src/*",
+      ],
+      "#/*": [
+        "./*"
       ]
     }
   },
   "include": [
-    "src"
+    "src",
+    "tests"
   ]
 }
