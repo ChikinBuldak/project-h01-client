@@ -1,6 +1,6 @@
 import { CombatResource } from "@/ecs/resources/CombatResource";
-import { isNone, OptionWrapper, type Component, type World } from "@/types";
-import { unwrapOpt } from '../../../types/option';
+import {OptionWrapper, type Component, type World } from "@/types";
+import { unwrapOpt } from '@/types/option';
 
 export default class CharacterTag implements Component {
     public readonly name: string;

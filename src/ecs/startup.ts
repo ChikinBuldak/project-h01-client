@@ -10,7 +10,7 @@ import { NetworkStateBuffer} from './components';
 import { CharacterFactory } from './factories/CharacterFactory';
 import { WorldFactory } from './factories/WorldFactory';
 import { Entity, type Resource, type System } from '../types/ecs';
-import { NetworkResource, Time } from './resources';
+import { NetworkResource, Time, type NetworkDiscordJoinData } from './resources';
 import { isSome } from '@/types';
 import type { GameConfig } from '@/types/config';
 import { PhysicsResource } from './resources/PhysicsResource';
@@ -25,22 +25,11 @@ import { LogSystem } from './systems/others/LogSystem';
  */
 export function setupResources(
     addResource: (res: Resource) => void,
-    isOnline: boolean,
-    backEndUrl: string
 ) {
     addResource(new Time());
     addResource(new PhysicsResource());
     addResource(new DomResource());
     addResource(new CombatResource());
-
-    if (isOnline) {
-        console.log("Running in ONLINE mode.");
-        if (backEndUrl) {
-            addResource(new NetworkResource(backEndUrl));
-        }
-    } else {
-        console.log("Running in OFFLINE mode.");
-    }
 }
 
 /**

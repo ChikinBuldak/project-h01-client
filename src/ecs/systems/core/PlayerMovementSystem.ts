@@ -7,6 +7,7 @@ import { isNone, isSome, unwrapOpt, type Input, type PlayerInput, type PlayerPhy
 import { InputEvent } from "../../events/InputEvent";
 import { AttackRequest } from "../../components/character/AttackRequest";
 // import { Transform } from "../components/Transform";
+import { CombatState } from '../../components/character/combat/CombatState';
 
 const PLAYER_SPEED = 5;
 const JUMP_FORCE = 12;
@@ -94,6 +95,8 @@ export class PlayerMovementSystem implements System {
             state.faceDirection = -1;
         }
 
+        if (state.isBusy) return;
+
         // Handle dodge event
         if (input.dodge && state.getDodgeTimer <= 0 && state.getDodgeCooldown <= 0 && state.isGrounded) {
             this.startDodge(rb, state);
@@ -133,10 +136,16 @@ export class PlayerMovementSystem implements System {
         if (state.getDodgeCooldown > 0) {
             state.setDodgeCooldown = state.getDodgeCooldown - dt;
         }
+
         if (state.getDodgeTimer > 0) {
             state.setDodgeTimer = state.getDodgeTimer - dt;
             if (state.getDodgeTimer <= 0) {
                 state.isInvisible = false;
+                state.isBusy = false;
+                // if (combatState.timeSinceLastAttack >= combatState.attackDelay) {
+                //     state.isBusy = false;
+                //     state.isInvisible = false;
+                // }
             }
         }
     }

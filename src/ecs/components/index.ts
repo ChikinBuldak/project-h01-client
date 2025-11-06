@@ -1,5 +1,4 @@
 export * from '@/ecs/components/animation/AnimationController';
-export * from '@/ecs/components/character/ApplyHit';
 export * from '@/ecs/components/character/AttackRequest';
 export * from '@/ecs/components/physics/Collider';
 export * from '@/ecs/components/tag/Despawn';

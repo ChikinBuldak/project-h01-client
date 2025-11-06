@@ -1,4 +1,4 @@
-import type { Component } from "../../types/ecs";
+import type { Component } from "@/types/ecs";
 
 /**
  * A "tag" component to identify a static piece of map geometry

@@ -56,7 +56,6 @@ export class RedCombatAction implements ICombatAction<RedCombatActionMap> {
         if (state.timeSinceLastAttack < state.basicAttackDelay) {
             return;
         }
-
         state.timeSinceLastAttack = 0;
 
         let hitboxData;

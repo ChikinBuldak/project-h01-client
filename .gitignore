@@ -26,3 +26,7 @@ dist-ssr
 .env.production
 .env.staging
 .env
+*.key
+*.csr
+*.crt
+*.pem

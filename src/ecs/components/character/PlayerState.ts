@@ -14,6 +14,7 @@ export class PlayerState implements Component {
      * "-1" if facing left
      * */
     public faceDirection: Direction;
+    public isBusy: boolean = false;
 
     private _dodgeTimer: number;
     private _dodgeCooldown: number;
@@ -28,6 +29,7 @@ export class PlayerState implements Component {
         this._dodgeCooldown = 0; 
         this._maxJumpCount = 3;
         this._currentJumpCount = 3;
+        this.isBusy = false;
     }
 
     set setDodgeTimer(value: number) {
