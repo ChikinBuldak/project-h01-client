@@ -1,4 +1,5 @@
 import * as z from "zod";
+import configJson from '@/assets/game.config.json';
 
 
 export const AssetsSchema = z.object({
@@ -73,3 +74,5 @@ export const GameConfigSchema = z.object({
   "scene": SceneSchema,
 });
 export type GameConfig = z.infer<typeof GameConfigSchema>;
+
+export const gameConfig: GameConfig = configJson as GameConfig;

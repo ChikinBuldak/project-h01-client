@@ -2,28 +2,28 @@
 export type Option<T> = Some<T> | None;
 
 export type Some<T> = {
-  readonly tag: 'some';
+  readonly some: true;
   readonly value: T;
 };
 
 export type None = {
-  readonly tag: 'none';
+  readonly some: false;
 };
 
 // Constructors
 export const some = <T>(value: T): Option<T> => ({
-  tag: 'some',
+  some: true,
   value,
 });
 
-export const none: None = { tag: 'none' };
+export const none: None = { some: false };
 
 // Type guards
 export const isSome = <T>(opt: Option<T>): opt is Some<T> =>
-  opt.tag === 'some';
+  opt.some;
 
 export const isNone = <T>(opt: Option<T>): opt is None =>
-  opt.tag === 'none';
+  !opt.some;
 
 // Functional utilities
 export const mapOpt = <T, U>(opt: Option<T>, fn: (t: T) => U): Option<U> =>
@@ -94,12 +94,12 @@ export class OptionWrapper<T> {
 
   /** Check if Option contains a value */
   isSome(): this is OptionWrapperWithValue<T> {
-    return this.inner.tag === "some";
+    return this.inner.some;
   }
 
   /** Check if Option is empty */
   isNone(): this is OptionWrapperNone<T> {
-    return this.inner.tag === "none";
+    return !this.inner.some;
   }
 
   /** Map the value inside if Some */

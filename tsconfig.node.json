@@ -3,7 +3,9 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "ES2023",
     "lib": [
-      "ES2023"
+      "ES2023",
+      "DOM",
+      "WebWorker"
     ],
     "module": "ESNext",
     "types": [
@@ -27,11 +29,15 @@
     "paths": {
       "@/*": [
         "src/*"
+      ],
+      "#/*": [
+        "./*"
       ]
     }
   },
   "include": [
     "vite.config.ts",
-    "scripts"
+    "scripts",
+    "tests",
   ]
 }

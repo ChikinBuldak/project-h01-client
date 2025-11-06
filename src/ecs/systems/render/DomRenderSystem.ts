@@ -5,6 +5,8 @@ import { AnimationController, DomMaterial, LocalPlayerTag, Mesh2D, PlayerState, 
 import { DomResource } from "@/ecs/resources/DomResource";
 import LogEvent from "@/ecs/events/LogEvent";
 
+const PLAYER_Z_INDEX = 5
+
 export class DomRenderSystem implements System {
 
     // Add a guard to ensure init only runs once
@@ -55,7 +57,7 @@ export class DomRenderSystem implements System {
         if (!worldElement || !container) return;
         const returnComp = [Transform]
         const filterComp = [LocalPlayerTag]
-        const query = world.queryWithFilter(returnComp, filterComp);
+        const query = world.queryWithFilter({returnComponents: returnComp, filterComponents: filterComp});
         if (query.length === 0) return;
         const [transform] = query[0];
 
@@ -112,6 +114,14 @@ export class DomRenderSystem implements System {
                 // Center the origin
                 el.style.left = `${-mesh.width / 2}px`;
                 el.style.top = `${-mesh.height / 2}px`;
+                el.style.zIndex = PLAYER_Z_INDEX.toString();
+
+                // check if the entity is local player
+                const playerTagOpt = entity.getComponent(LocalPlayerTag);
+                if (playerTagOpt.some) {
+                    const newZIndex = PLAYER_Z_INDEX + 1;
+                    el.style.zIndex = newZIndex.toString();
+                }
 
                 // Apply Sprite material (if it exists)
                 if (isSome(spriteOpt) && assetServer) {
@@ -126,7 +136,6 @@ export class DomRenderSystem implements System {
                     const material = unwrapOpt(materialOpt);
                     el.className = material.className;
                     Object.assign(el.style, material.styles);
-                    el.style.zIndex = `${material.zIndex}`;
                 }
             }
 

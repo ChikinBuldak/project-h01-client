@@ -24,20 +24,6 @@ export class NetworkReceiveSystem implements System {
         this.serverIdToEntityId.set(serverId, entity.id);
     }
 
-    /**
-     * Removes an entity from the world and cleans up its ID mapping.
-     */
-    private removeEntityWithServerId(world: World, serverId: string) {
-        const entityId = this.serverIdToEntityId.get(serverId);
-        if (entityId !== undefined) {
-            const entity = world.getEntity(entityId);
-            if (isSome(entity)) {
-                world.removeEntity(entity.value.id);
-            }
-            this.serverIdToEntityId.delete(serverId);
-        }
-    }
-
     update(world: World): void {
         const net = world.getResource(NetworkResource);
 
@@ -96,8 +82,7 @@ export class NetworkReceiveSystem implements System {
 
                     // Create new map entities
                     for (const obj of message.objects) {
-                        const factory = new WorldFactory();
-                        const ground = factory.createGround({
+                        const ground = WorldFactory.createGround({
                             x: obj.position.x,
                             y: obj.position.y,
                             width: obj.width,

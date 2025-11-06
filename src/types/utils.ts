@@ -32,3 +32,10 @@ export function from<A, B>(value: A, convert: FromFn<A, B>): B {
 export function into<A, B>(value: A, convert: IntoFn<A, B>): B {
   return convert(value);
 }
+
+/**
+ * Represents the opaque ID returned by `setInterval` or `setTimeout`.
+ * In browsers, this is a `number`. In Node.js, it's a `NodeJS.Timeout` object.
+ * We alias it as `number` for clarity in this browser-based project.
+ */
+export type IInterval = number;

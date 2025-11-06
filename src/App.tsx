@@ -1,127 +1,166 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { useGameLoop } from './hooks/world.hooks'
-import { useWorldStore } from './stores/world.stores'
-import { InputManager } from './types/input'
-import { isSome, unwrapOpt } from './types/option'
+import { useWorldStore } from './stores/world.store'
 import { DiscordSDK, type IDiscordSDK } from '@discord/embedded-app-sdk'
-import { AssetServer, AudioServer, NetworkResource } from './ecs/resources'
+import { NetworkResource, type NetworkDiscordJoinData } from './ecs/resources'
 import { parseBoolean, setupDiscordSDK } from './utils';
-import { setupEntities, setupResources, setupSystems } from './ecs/startup'
-import { isErr, tryCatchAsync, unwrapRes, type Result } from './types'
-import type { GameConfig } from './types/config'
+import { LoadingState } from './ecs/states/LoadingState'
+import { ConfigResource } from './ecs/resources/ConfigResource'
+import { AppStateResource } from './ecs/resources/state'
+import ErrorState from './ecs/states/ErrorState'
+import GameUIManager from './ui-components/game/GameUiManager'
+import { initialAppLoadTask, MainMenuState } from './ecs/states'
+
+const queryParams = new URLSearchParams(window.location.search);
+const frameId = queryParams.get('frame_id');
+
+const RUN_TEST_PAGE = false;
 
 let discordSdk: IDiscordSDK | null = null;
 
-if (window.self !== window.top) {
-	// Only initialize the SDK if we're in an iframe (i.e., inside Discord)
+if (frameId) {
+	// Only initialize the SDK if we are inside Discord's iframe
 	discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
+} else {
+	// This is useful for debugging in the browser
+	console.warn("Not in Discord iframe (no frame_id). SDK will not be initialized.");
 }
+
+function TestPage() {
+	const [count, setCount] = useState(0);
+
+	const onTestClick = () => {
+		console.log("Test button clicked! Count is:", count + 1);
+		setCount(c => c + 1);
+	};
+
+	return (
+		<div
+			style={{
+				display: 'flex',
+				flexDirection: 'column',
+				alignItems: 'center',
+				justifyContent: 'center',
+				height: '100vh',
+				width: '100vw',
+				backgroundColor: '#1e1e1e', // A dark grey, not pure black
+				color: 'white',
+				fontSize: '24px',
+				fontFamily: 'sans-serif',
+			}}
+		>
+			<h1 style={{ color: '#5865F2' }}>Render Test Successful!</h1>
+			<p>If you can see this, your Vite server and React are working.</p>
+			<p>Your CSS file is also likely loaded.</p>
+			<p style={{ fontSize: '18px', color: '#bbb' }}>
+				Frame ID: {frameId ? frameId : 'Not in iframe'}
+			</p>
+
+			<button
+				onClick={onTestClick}
+				style={{
+					fontSize: '20px',
+					padding: '10px 20px',
+					marginTop: '20px',
+					backgroundColor: '#5865F2',
+					color: 'white',
+					border: 'none',
+					borderRadius: '5px',
+					cursor: 'pointer',
+				}}
+			>
+				Click to Test JS (Count: {count})
+			</button>
+			<p style={{ fontSize: '16px', color: '#bbb', marginTop: '10px' }}>
+				(Check the Discord client console after clicking)
+			</p>
+		</div>
+	);
+}
+
+
 
 function App() {
 	useGameLoop();
-	const { addSystem, addEntity, initializeWorld, addResource } = useWorldStore.getState();
+	const { initializeWorld, addResource } = useWorldStore.getState();
 	const initRef = useRef(false);
 	const [auth, setAuth] = useState<{ user: { username: string } } | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 	const backEndUrl = import.meta.env.VITE_BACKEND_URL;
-
-	const setupDiscord = useCallback(() => {
-		setupDiscordSDK(discordSdk, setAuth, addResource, backEndUrl);
-	}, [addResource, backEndUrl]);
+	const discordBotUrl = import.meta.env.VITE_DISCORD_BOT_URL;
 
 	useEffect(() => {
+		if (RUN_TEST_PAGE) return;
 		if (initRef.current) return;
 		initRef.current = true;
+		let effectiveOnline = false;
 
 		const IS_ONLINE = parseBoolean(import.meta.env.VITE_ONLINE || '');
 
-		async function initializeGame() {
-			console.log("INITIALIZING APP...");
-			InputManager.initialize();
-			initializeWorld();
-
-			// load config
-			const configResponse = await fetch('/game.config.json');
-			if (!configResponse.ok) {
-				const message = `Failed to fetch game.config.json: ${configResponse.statusText}`
-				console.error(message);
-				setError(message)
-				return;
-			}
-			const configRes: Result<GameConfig, unknown> = await tryCatchAsync(async () => await configResponse.json());
-			if (isErr(configRes)) {
-				console.error(`cannot load config from JSON: ${configRes}`);
-				setError(configRes.error as string);
-				return;
-			}
-			const config = unwrapRes(configRes);
-			const assetServer = new AssetServer();
-			const audioServer = new AudioServer();
-			addResource(assetServer);
-			addResource(audioServer);
-
-			// preload assets
-			console.log("Preloading assets...");
-			const loadAssetRes = await tryCatchAsync(() => assetServer.preload(config.assets.images));
-			if (isErr(loadAssetRes)) {
-				console.error(`Error loading asset: ${loadAssetRes.error}`);
-				return;
-			}
-			const loadAudioRes = await tryCatchAsync(()=>audioServer.preload(config.assets.audio));
-			if (isErr(loadAudioRes)) {
-				console.error(`Error loading audio assets: ${loadAudioRes.error}`);
-				// return;
-			}
-
-			setupResources(addResource, IS_ONLINE, backEndUrl);
-			setupSystems(addSystem, IS_ONLINE);
-			if (IS_ONLINE) {
-				setupDiscord();
-			}
-			setIsLoading(false);
-
-			const intervalId = setupEntities(addEntity, IS_ONLINE, config);
-			console.log("Everything good");
-			return () => {
-				if (intervalId) {
-					clearInterval(intervalId);
-				}
-				const { world } = useWorldStore.getState();
-				const net = world.getResource(NetworkResource);
-				if (isSome(net)) unwrapOpt(net).disconnect();
-			}
+		// If not in iframe or not online, set mock auth and finish
+		if (!IS_ONLINE || !discordSdk) {
+			console.log('Running in TRULY OFFLINE mode.');
+			setAuth({ user: { username: 'Offline' } });
+			effectiveOnline = false;
+			// Start the game in offline mode
+			addResource(new ConfigResource(effectiveOnline));
+			addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+			return;
 		}
 
-		// Call the async setup function
-		let cleanup = () => {};
-		initializeGame().then(cleanupFn => {
-			if (cleanupFn) {
-				cleanup = cleanupFn;
+		// We are online and in the iframe. Start the auth process.
+		async function authenticate() {
+			console.log('Starting Discord authentication...');
+			const authResult = await setupDiscordSDK(
+				discordSdk,
+				backEndUrl,
+				discordBotUrl
+			);
+			let joinData: NetworkDiscordJoinData;
+			if (authResult) {
+				// --- STATE: FULLY ONLINE ---
+				console.log('Discord auth success. Running in FULL ONLINE mode.');
+				setAuth(authResult.auth);
+				joinData = authResult.joinData;
+				addResource(new NetworkResource(backEndUrl, joinData));
+				effectiveOnline = true;
+			} else {
+				// --- STATE: SEMI-OFFLINE ---
+				console.warn('Discord SDK setup failed. Running in SEMI-OFFLINE mode.');
+				joinData = {
+					guildId: 'mock',
+					channelId: 'mock',
+					userId: crypto.randomUUID(),
+				};
+				addResource(new NetworkResource(backEndUrl, joinData));
+				setAuth({ user: { username: 'Offline' } });
+				effectiveOnline = false;
 			}
+
+			// Regardless of auth outcome, add resources and start the LoadingState
+			addResource(new ConfigResource(effectiveOnline));
+			addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+		}
+
+		authenticate().catch((err) => {
+			console.error('Critical error during authentication:', err);
+			addResource(new ConfigResource(false));
+			addResource(
+				new AppStateResource(
+					new LoadingState(
+						new ErrorState(err.message || 'An unknown authentication error occurred'),
+						undefined, // No task
+						'Error...'
+					)
+				)
+			);
+			setAuth({ user: { username: 'Offline' } }); // Set auth to unblock
 		});
 
-		return () => {
-			cleanup();
-		}
+	}, [addResource, backEndUrl, discordBotUrl, initializeWorld])
 
-	}, [addEntity, addResource, addSystem, backEndUrl, initializeWorld, setupDiscord])
-
-	if (error) {
-		return (
-			<div id="instructions" style={{ textAlign: 'center', paddingTop: '50px', color: 'red' }}>
-				Error: {error}
-			</div>
-		);
-	}
-	
-	if (isLoading) {
-		return (
-			<div id="instructions" style={{ textAlign: 'center', paddingTop: '50px' }}>
-				Loading Assets & Config...
-			</div>
-		);
+	if (RUN_TEST_PAGE) {
+		return <TestPage />;
 	}
 
 	if (discordSdk && !auth) {
@@ -133,13 +172,9 @@ function App() {
 	}
 	return (
 		<>
+			<GameUIManager />
 			<div id="world-container">
 				<div id="world"></div>
-			</div>
-			<div id="instructions">
-				Use WASD keys to move your cube (client-side prediction).
-				<br />
-				The other cube moves on its own (server interpolation).
 			</div>
 		</>
 	)

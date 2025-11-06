@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Transform } from "../ecs/components/Transform";
+import type { Transform } from "@/ecs/components";
 
 
 export type TransformState = Pick<Transform,  'position' | 'rotation'>;
@@ -63,6 +63,26 @@ export const zPlayerStateMessage = z.object({
    tick: z.number(),
    state: zPlayerPhysicsState, // Can re-use the same state shape
   });
+
+  /**
+ * The "welcome packet" sent once when a player joins.
+ * Tells the client its own ID, the server's current tick,
+ * and the state of all other entities.
+ */
+export const zWorldInitMessage = z.object({
+  type: z.literal("world_init"),
+  /** The entity ID the server has assigned to you. */
+  yourId: z.string(),
+  /** The server's current tick. Use this to sync your game loop. */
+  serverTick: z.number(),
+  /** A list of all other entities currently in the game. */
+  entities: z.array(z.object({
+      id: z.string(),
+      state: zPlayerPhysicsState, // Use the full physics state
+  })),
+});
+
+
   
   // Union schema for all possible client messages
   export const zClientMessage = z.discriminatedUnion("type", [
@@ -88,6 +108,7 @@ export const zMapLoadMessage = z.object({
   export type PlayerPhysicsState = z.infer<typeof zPlayerPhysicsState>;
   export type EntityStateMessage = z.infer<typeof zEntityStateMessage>;
   export type PlayerStateMessage = z.infer<typeof zPlayerStateMessage>;
+  export type WorldInitMessage = z.infer<typeof zWorldInitMessage>;
   export type MapObject = z.infer<typeof zMapObject>;
   export type MapLoadMessage = z.infer<typeof zMapLoadMessage>;
   
@@ -132,6 +153,7 @@ const zReconciliation = z.object({
 
 // Union schema for all possible server messages
 export const zServerMessage = z.discriminatedUnion("type", [
+    zWorldInitMessage,
     zPlayerStateMessage,
     zEntityStateMessage,
     zMapLoadMessage,
@@ -157,3 +179,75 @@ export function parseServerMessage(data: unknown): z.ZodSafeParseResult<ServerMe
     }
     return result;
 }
+
+// Signalling server data
+
+// PeerType enum (assuming it exists based on usage)
+export const PeerType = z.enum(['player', 'server']);
+export type PeerType = z.infer<typeof PeerType>;
+
+// Base schemas for common fields
+const baseRoomSchema = z.object({
+  guild_id: z.string(),
+  channel_id: z.string(),
+});
+
+const basePeerMessageSchema = baseRoomSchema.extend({
+  from_peer: z.string(),
+  to_peer: z.string(),
+});
+
+// Individual message schemas
+export const JoinMessage = z.object({
+  type: z.literal('join'),
+  guild_id: z.string(),
+  channel_id: z.string(),
+  peer_type: PeerType,
+  user_id: z.string(),
+});
+
+export const CreateOfferMessage = z.object({
+  type: z.literal('create-offer'),
+});
+
+export const OfferMessage = basePeerMessageSchema.extend({
+  type: z.literal('offer'),
+  sdp: z.string(),
+});
+
+export const AnswerMessage = basePeerMessageSchema.extend({
+  type: z.literal('answer'),
+  sdp: z.string(),
+});
+
+export const IceCandidateMessage = basePeerMessageSchema.extend({
+  type: z.literal('ice-candidate'),
+  candidate: z.string(),
+  sdp_mid: z.string().optional(),
+  sdp_mline_index: z.number().int().nonnegative().optional(),
+});
+
+export const ChatMessage = basePeerMessageSchema.extend({
+  type: z.literal('chat'),
+  content: z.string(),
+});
+
+// Main SignalMessage union type
+export const SignalMessage = z.discriminatedUnion('type', [
+  JoinMessage,
+  CreateOfferMessage,
+  OfferMessage,
+  AnswerMessage,
+  IceCandidateMessage,
+  ChatMessage,
+]);
+
+export type SignalMessage = z.infer<typeof SignalMessage>;
+
+// Individual type exports for convenience
+export type JoinMessage = z.infer<typeof JoinMessage>;
+export type CreateOfferMessage = z.infer<typeof CreateOfferMessage>;
+export type OfferMessage = z.infer<typeof OfferMessage>;
+export type AnswerMessage = z.infer<typeof AnswerMessage>;
+export type IceCandidateMessage = z.infer<typeof IceCandidateMessage>;
+export type ChatMessage = z.infer<typeof ChatMessage>;

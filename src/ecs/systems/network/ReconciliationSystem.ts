@@ -17,10 +17,10 @@ export class ReconciliationSystem implements System {
 
     ) {
         const time = unwrapOpt(world.getResource(Time))
-        const localPlayerQuery = world.queryWithFilter(
-            [RigidBody, PlayerState, PredictionHistory],
-            [LocalPlayerTag],
-        );
+        const localPlayerQuery = world.queryWithFilter({
+            returnComponents: [RigidBody, PlayerState, PredictionHistory],
+            filterComponents: [LocalPlayerTag],
+        });
         const predictor = world.getSystem(PlayerMovementSystem);
         if (localPlayerQuery.length === 0 || !time || isNone(predictor)) return;
         const [rb, state, history] = localPlayerQuery[0];

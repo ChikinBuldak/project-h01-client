@@ -22,11 +22,23 @@ export class CombatSystem implements System {
 
         this.tickComboTimers(world, dt);
 
-        const attackRequests = world.queryWithEntityAndFilter([CharacterTag], [AttackRequest, PlayerState, RigidBody]);
-        for (const [entity, tag] of attackRequests) {
+        const attackRequests = world.queryWithEntityAndFilter({
+            returnComponents: [CharacterTag, PlayerState], 
+            filterComponents: [AttackRequest, RigidBody]
+        });
+        for (const [entity, tag, state] of attackRequests) {
+            if (state.isBusy) {
+                entity.removeComponent(AttackRequest);
+                continue;
+            }
+
+            state.isBusy = true;
             const actionHandler = CharacterTag.mapToAction(tag, world)
             if (actionHandler.isSome()) {
-                actionHandler.value.basicAttack(entity, world);
+                // only applies basic attack if it is not in the air
+                if (state.isGrounded) {
+                    actionHandler.value.basicAttack(entity, world);
+                }
             }
             entity.removeComponent(AttackRequest);
         }
@@ -58,8 +70,13 @@ export class CombatSystem implements System {
 
             const victimRb = victim.getComponent(RigidBody);
             const victimKnockbacker = victim.getComponent(Knockbacker);
+            const victimState = victim.getComponent(PlayerState);
 
-            if (isSome(victimRb) && isSome(victimKnockbacker)) {
+            if (isSome(victimRb) && isSome(victimKnockbacker) && isSome(victimState)) {
+                // check whether the current enemy is invisible
+                if (victimState.value.isInvisible) {
+                    return;
+                }
                 world.sendEvent(new LogEvent('info', `[CombatSystem] Local Hit! Applying knockback`));
                 const force = victimKnockbacker.value.applyHit(hitbox.damage, hitbox.baseForce);
                 const trajectory = Matter.Vector.normalise(hitbox.trajectory);
@@ -73,14 +90,19 @@ export class CombatSystem implements System {
     }
 
     private tickComboTimers(world: World, dt: number) {
-        const query = world.query(CombatState);
-        for (const [state] of query) {
+        const query = world.query(CombatState, PlayerState);
+        for (const [state, playerState] of query) {
+            const isAttacking = playerState.isBusy && playerState.getDodgeTimer <= 0;
             state.timeSinceLastAttack += dt;
 
             if (state.timeSinceLastAttack > state.resetThreshold) {
                 if (state.sequenceCount !== 0) {
                     state.sequenceCount = 0;
                 }
+            }
+
+            if (isAttacking && state.timeSinceLastAttack >= state.basicAttackDelay) {
+                playerState.isBusy = false;
             }
         }
     }

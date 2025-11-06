@@ -1,12 +1,12 @@
 /** Represents a successful operation with a value T. */
 export type Ok<T> = {
-    readonly tag: "ok";
+    readonly ok: true;
     readonly value: T;
 };
 
 /** Represents a failed operation with an error E. */
 export type Err<E> = {
-    readonly tag: "err";
+    readonly ok: false;
     readonly error: E;
 };
 
@@ -16,14 +16,14 @@ export type Err<E> = {
  */
 export type Result<T, E> = Ok<T> | Err<E>;
 
-export const ok = <T, E = unknown>(value: T): Result<T, E> => ({ tag: "ok", value });
-export const err = <T = unknown, E = unknown>(error: E): Result<T, E> => ({ tag: "err", error });
+export const ok = <T, E = unknown>(value: T): Result<T, E> => ({ ok: true, value });
+export const err = <T = unknown, E = unknown>(error: E): Result<T, E> => ({ ok: false, error });
 
 /** Checks if the Result is the Ok variant. */
-export const isOk = <T, E>(result: Result<T, E>): result is Ok<T> => result.tag === "ok";
+export const isOk = <T, E>(result: Result<T, E>): result is Ok<T> => result.ok;
 
 /** Checks if the Result is the Err variant. */
-export const isErr = <T, E>(result: Result<T, E>): result is Err<E> => result.tag === 'err';
+export const isErr = <T, E>(result: Result<T, E>): result is Err<E> => !result.ok;
 
 /**
  * Maps an Ok<T> to Ok<U> by applying a function, leaving Err<E> untouched.
@@ -163,11 +163,10 @@ export const match = <T, E, R>(
         err: (error: E) => R;
     }
 ): R => {
-    switch (result.tag) {
-        case "ok":
-
+    switch (result.ok) {
+        case true:
             return handlers.ok(result.value);
-        case "err":
+        case false:
             return handlers.err(result.error);
     }
 };

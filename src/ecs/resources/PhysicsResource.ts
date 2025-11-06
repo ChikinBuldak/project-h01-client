@@ -16,7 +16,7 @@ export class PhysicsResource implements Resource {
         console.log("[PhysicsResource] Initializing Matter.js Engine...");
         this.engine = Matter.Engine.create();
         this.world = this.engine.world;
-        this.engine.gravity.y = 1;
+        this.engine.gravity.y = 1.0;
     }
 
     /**
