@@ -1,5 +1,7 @@
-import { Time } from "../ecs/resources/Time";
+import { buildCamelCasedResources } from '@/utils';
+import { Time } from '../ecs/resources/Time';
 import { isSome, none, some, type Option } from "./option";
+import { buildResourceMap, type ResourceRegistry } from '@/utils/registry/resource.registry';
 
 /**
  * Component, If you want to define a component, you are required to implement this interface
@@ -27,14 +29,22 @@ export interface AppState {
      * Logic that will be run once after entering this state. use this
      * to initiate all systems and entities required
      */
-    onEnter(world: World): void;
+    onEnter(world: World, args?: SystemResourcePartial): void;
 
     /**
      * Logic that will be run once after entering this state. use this
      * to remove unusud systems and entities
      */
-    onExit(world: World): void;
+    onExit(world: World,args?: SystemResourcePartial): void;
 }
+
+/**
+ * A collection of all registered resources, keyed by their constructor name.
+ * Systems will receive this object in their update/render methods.
+ */
+export type SystemResources = ResourceRegistry
+
+export type SystemResourcePartial = Partial<SystemResources>;
 
 /**
  * A single instance of "Entity". Can have 0 to many components
@@ -83,8 +93,8 @@ export type ComponentInstance<T> = T extends new (...args: any[]) => infer R ? R
 export type ComponentCtor<T extends Component> = new (...args: any[]) => T;
 
 export interface System {
-    update(world: World): void;
-    render?(world: World): void;
+    update(world: World, resources: SystemResourcePartial): void;
+    render?(world: World, resources: SystemResourcePartial): void;
 }
 
 type SystemCtor<T extends System> = new (...args: any[]) => T;
@@ -104,35 +114,49 @@ export class World {
         this.entities.delete(entityId);
         return this;
     }
+    clearEntities(): this {
+        this.entities.clear();
+        return this;
+    }
     addSystem(system: System): this {
         this.systems.set(system.constructor, system);
         return this;
     }
-    removeSystem(systemCtor: Function): boolean {
-        return this.systems.delete(systemCtor);
+    removeSystem<T extends System>(ctor: SystemCtor<T>): boolean {
+        return this.systems.delete(ctor);
+    }
+
+    /**
+     * Removes a resource from the world.
+     */
+    removeResource<T extends Resource>(ctor: new (...args: any[]) => T): this {
+        this.resources.delete(ctor);
+        return this;
     }
     update(deltaTime: number): void {
         this.clearEvents();
-        const time = this.getResource(Time);
-        if (isSome(time)) {
-            time.value.fixedDeltaTime = deltaTime;
-            time.value.elapsedTime += deltaTime;
+        const resources = buildResourceMap(this.resources);
+        const time = resources.time as Time | undefined;
+        if (time) {
+            time.fixedDeltaTime = deltaTime;
+            time.elapsedTime += deltaTime;
+            time.currentTick = time.currentTick + 1;
         }
 
-        // --- 2. Run all systems ---
-        // Systems can now query the Time resource
+        // Run all systems
         for (const system of this.systems.values()) {
-            system.update(this);
+            system.update(this, resources);
         }
     }
     render(alpha: number): void {
-        const time = this.getResource(Time);
-        if (isSome(time)) {
-            time.value.alpha = alpha;
-        }
+        const resources = buildResourceMap(this.resources);
+
+        const time = resources.time;
+        if (time) time.alpha = alpha;
+
         for (const system of this.systems.values()) {
             if (system.render) {
-                system.render(this);
+                system.render(this, resources);
             }
         }
     }
@@ -325,5 +349,103 @@ export class World {
             matches.push([entity, ...components] as unknown as [Entity, ...{ [K in keyof R]: ComponentInstance<R[K]> }]);
         }
         return matches;
+    }
+
+    /** Find the first element from the query. returns Option of components */
+    querySingle<C extends ReadonlyArray<ComponentCtor<Component>>>(
+        ...componentTypes: C
+    ): Option<{ [K in keyof C]: ComponentInstance<C[K]> }> {
+        for (const entity of this.entities.values()) {
+            if (!componentTypes.every((ctor) => entity.hasComponent(ctor))) continue;
+
+            const components = componentTypes.map((ctor) => {
+                const compOpt = entity.getComponent(ctor);
+                return isSome(compOpt)
+                    ? compOpt.value
+                    : (() => {
+                        throw new Error(`Missing component ${ctor.name} after check`);
+                    })();
+            });
+            return some(components as { [K in keyof C]: ComponentInstance<C[K]> })
+        }
+        return none;
+    }
+
+    queryWithEntitySingle<C extends ReadonlyArray<ComponentCtor<Component>>>(
+        ...componentTypes: C
+    ): Option<[Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]> {
+        for (const entity of this.entities.values()) {
+            if (!componentTypes.every((ctor) => entity.hasComponent(ctor))) continue;
+
+            const components = componentTypes.map((ctor) => {
+                const compOpt = entity.getComponent(ctor);
+                return isSome(compOpt)
+                    ? compOpt.value
+                    : (() => {
+                        throw new Error(`Missing component ${ctor.name} after check`);
+                    })();
+            });
+            return some([entity, ...components] as unknown as [Entity, ...{ [K in keyof C]: ComponentInstance<C[K]> }]);
+        };
+
+        return none;
+    }
+
+    queryWithFilterSingle<
+        R extends ReadonlyArray<ComponentCtor<Component>>,
+        F extends ReadonlyArray<ComponentCtor<Component>>
+    >(
+        props: {
+            returnComponents: [...R],
+            filterComponents: [...F]
+        }
+    ): Option<{ [K in keyof R]: ComponentInstance<R[K]> }> {
+        const { returnComponents, filterComponents } = props;
+
+        const allTypes = [...returnComponents, ...filterComponents];
+
+        for (const entity of this.entities.values()) {
+            if (!allTypes.every((ctor) => entity.hasComponent(ctor))) continue;
+            const components = returnComponents.map((ctor) => {
+                const compOpt = entity.getComponent(ctor);
+                return isSome(compOpt)
+                    ? compOpt.value
+                    : (() => {
+                        throw new Error(`Missing component ${ctor.name} after check`);
+                    })();
+            });
+            return some(components as { [K in keyof R]: ComponentInstance<R[K]> });
+        }
+
+        return none;
+    }
+
+    queryWithEntityAndFilterSingle<
+        R extends ReadonlyArray<ComponentCtor<Component>>,
+        F extends ReadonlyArray<ComponentCtor<Component>>
+    >(
+        props: {
+            returnComponents: [...R],
+            filterComponents: [...F]
+        }
+    ): Option<[Entity, ...{ [K in keyof R]: ComponentInstance<R[K]> }]> {
+        const { returnComponents, filterComponents } = props;
+
+        const allTypes = [...returnComponents, ...filterComponents];
+
+        for (const entity of this.entities.values()) {
+            if (!allTypes.every((ctor) => entity.hasComponent(ctor))) continue;
+            const components = returnComponents.map((ctor) => {
+                const compOpt = entity.getComponent(ctor);
+                return isSome(compOpt)
+                    ? compOpt.value
+                    : (() => {
+                        throw new Error(`Missing component ${ctor.name} after check`);
+                    })();
+            });
+            return some([entity, ...components] as unknown as [Entity, ...{ [K in keyof R]: ComponentInstance<R[K]> }]);
+        }
+
+        return none;
     }
 }

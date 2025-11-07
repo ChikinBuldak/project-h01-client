@@ -1,4 +1,5 @@
 import type { Resource } from "@/types";
+import { registerResource } from "@/utils/registry/resource.registry";
 
 export class DomResource implements Resource {
     /** Main element <div id="world-container"> */
@@ -12,4 +13,12 @@ export class DomResource implements Resource {
      * DomRenderSystem will manage this map.
      */
     public elements = new Map<number, HTMLDivElement>();
+}
+
+registerResource("domResource", DomResource);
+
+declare module "@/utils/registry/resource.registry" {
+  interface ResourceRegistry {
+    domResource: DomResource;
+  }
 }

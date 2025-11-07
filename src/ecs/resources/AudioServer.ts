@@ -1,5 +1,6 @@
 import { isErr, tryCatch, tryCatchAsync } from '@/types';
 import type { Resource } from '../../types/ecs';
+import { registerResource } from '@/utils/registry/resource.registry';
 
 /**
  * A resource for handling audio player
@@ -140,4 +141,11 @@ export class AudioServer implements Resource {
             this.bgmGain.gain.setValueAtTime(volume, this.context.currentTime);
         }
     }
+}
+
+registerResource("audioServer", AudioServer);
+declare module "@/utils/registry/resource.registry" {
+  interface ResourceRegistry {
+    audioServer: AudioServer;
+  }
 }

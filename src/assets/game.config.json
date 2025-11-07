@@ -4,9 +4,9 @@
       "/assets/player-spritesheet.png"
     ],
     "audio": [
-      "/assets/jump.wav",
-      "/assets/dodge.wav",
-      "/assets/bgm.mp3"
+      "/assets/sfx/jump.wav",
+      "/assets/sfx/dodge.wav",
+      "/assets/bgm/bgm.mp3"
     ]
   },
   "player": {

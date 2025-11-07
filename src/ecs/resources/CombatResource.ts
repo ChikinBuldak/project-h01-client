@@ -1,6 +1,7 @@
 import { RedCombatAction } from "@/game-components/combat/RedCombatAction";
 import type { ICombatAction } from "@/interfaces/combat/ICombatAction";
 import type { Resource } from "@/types";
+import { registerResource } from "@/utils/registry/resource.registry";
 
 /**
  * A resource for combat mechanism. it stores map of character
@@ -16,4 +17,11 @@ export class CombatResource implements Resource {
         this.combatResources.set('red', new RedCombatAction());
         console.log('[CombatResource] Combat resource is initialized');
     }
+}
+
+registerResource("combatResource", CombatResource);
+declare module "@/utils/registry/resource.registry" {
+  interface ResourceRegistry {
+    combatResource: CombatResource;
+  }
 }

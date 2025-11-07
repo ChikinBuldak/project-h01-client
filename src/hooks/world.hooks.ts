@@ -14,7 +14,6 @@ export const useGameLoop = () => {
     const rafRef = useRef(0);
 
     useEffect(() => {
-        let frameId: number;
         const tick = (currentTime: number) => {
             rafRef.current = requestAnimationFrame(tick);
             const deltaTime = currentTime - lastTimeRef.current;

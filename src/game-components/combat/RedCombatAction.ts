@@ -15,9 +15,9 @@ interface RedCombatActionMap extends CombatActionMap {
  * Action handler for character "Red"
  */
 export class RedCombatAction implements ICombatAction<RedCombatActionMap> {
-    private static HITBOX_SEQ_1 = { width: 30, height: 20, damage: 3, baseForce: 1, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15, moveToFrontDistance: 5 };
-    private static HITBOX_SEQ_2 = { width: 30, height: 20, damage: 3, baseForce: 1, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15, moveToFrontDistance: 5};
-    private static HITBOX_SEQ_3 = { width: 35, height: 25, damage: 6, baseForce: 5, trajectory: { x: 1, y: -0.75 }, lifetime: 0.2, moveToFrontDistance: 10 };
+    private static HITBOX_SEQ_1 = { width: 30, height: 20, damage: 3, baseForce: 1, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15, moveToFrontDistance: 10 };
+    private static HITBOX_SEQ_2 = { width: 30, height: 20, damage: 3, baseForce: 1, trajectory: { x: 1, y: -0.2 }, lifetime: 0.15, moveToFrontDistance: 10};
+    private static HITBOX_SEQ_3 = { width: 35, height: 25, damage: 6, baseForce: 5, trajectory: { x: 1, y: -0.75 }, lifetime: 0.2, moveToFrontDistance: 18 };
 
     hardAttack: (
         entity: Entity,

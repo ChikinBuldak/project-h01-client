@@ -4,7 +4,7 @@ import type { LoadingUiState } from "@/stores/ui.types";
 import { InputManager, isErr, isSome, tryCatchAsync, unwrapOpt, type AppState, type World } from "@/types";
 import { AssetServer, AudioServer } from "../resources";
 import { ConfigResource } from "../resources/ConfigResource";
-import { setupResources } from "../startup";
+import { setupCoreSystems, setupResources } from "../startup";
 import { AppStateResource } from "../resources/state";
 import ErrorState from "./ErrorState";
 // This is the new, generic signature for any async loading work
@@ -66,10 +66,11 @@ export class LoadingState implements AppState {
 }
 
 export const initialAppLoadTask: LoadingTask = async (world: World) => {
-    const { addResource } = useWorldStore.getState();
+    const { addResource, addSystem } = useWorldStore.getState();
     const uiStore = useUiStore.getState();
-
+    
     InputManager.initialize();
+    setupResources(addResource);
 
     const configResOpt = world.getResource(ConfigResource);
     if (!isSome(configResOpt)) {
@@ -99,9 +100,10 @@ export const initialAppLoadTask: LoadingTask = async (world: World) => {
     if (isErr(loadAudioRes)) {
         console.error(`Error loading audio assets: ${loadAudioRes.error}`);
     }
+    uiStore.updateCurrentState({ progress: 80, message: 'Loading audio...' });
+    setupCoreSystems(addSystem);
 
     uiStore.updateCurrentState({ progress: 90, message: 'Setting up resources...' });
-    setupResources(addResource);
 
     uiStore.updateCurrentState({ progress: 100, message: 'Done!' });
 };

@@ -1,4 +1,5 @@
 import {  none, OptionWrapper, type AppState, type Resource, type Option, some, isSome, World} from "@/types";
+import { registerResource, type ResourceRegistry } from '@/utils/registry/resource.registry';
 
 export class CurrentState implements Resource {
     private state: AppState;
@@ -90,5 +91,13 @@ export class AppStateResource implements Resource {
    */
   public getCurrentState(): Option<AppState> {
     return this.currentState;
+  }
+}
+
+registerResource("appStateResource", AppStateResource);
+
+declare module "@/utils/registry/resource.registry" {
+  interface ResourceRegistry {
+    appStateResource: AppStateResource;
   }
 }

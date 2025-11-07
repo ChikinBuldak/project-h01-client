@@ -1,5 +1,7 @@
 // src/stores/ui.types.ts
 
+import type { InGameStateType } from "@/ecs/components/scenes/InGameStateComponent";
+
 // Data for the Main Menu
 export interface MainMenuUiState {
   type: 'MainMenu';
@@ -8,11 +10,8 @@ export interface MainMenuUiState {
 }
 
 // Data for the In-Game HUD
-export interface InGameUiState {
+export interface InGameUiState extends InGameStateType {
   type: 'InGame';
-  health: number;
-  maxHealth: number;
-  score: number;
 }
 
 // Data for the Loading Screen
@@ -27,4 +26,6 @@ export type UiState = MainMenuUiState | InGameUiState | LoadingUiState;
 
 type DistributePartial<T> = T extends any ? Partial<T> : never;
 export type PartialUiState = DistributePartial<UiState>;
-export type UserIntent = null | 'StartGame' | 'GoToOptions';
+export type MainMenuIntent = 'StartGame' | 'GoToOptions';
+export type InGameIntent = 'ResumeGame' | 'ExitToMenu';
+export type UserIntent = null | MainMenuIntent | InGameIntent ;

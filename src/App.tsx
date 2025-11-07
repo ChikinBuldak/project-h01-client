@@ -9,8 +9,9 @@ import { LoadingState } from './ecs/states/LoadingState'
 import { ConfigResource } from './ecs/resources/ConfigResource'
 import { AppStateResource } from './ecs/resources/state'
 import ErrorState from './ecs/states/ErrorState'
-import GameUIManager from './ui-components/game/GameUiManager'
+
 import { initialAppLoadTask, MainMenuState } from './ecs/states'
+import GameUIManager from './ui-components/game/GameUIManager'
 
 const queryParams = new URLSearchParams(window.location.search);
 const frameId = queryParams.get('frame_id');
@@ -96,66 +97,83 @@ function App() {
 		let effectiveOnline = false;
 
 		const IS_ONLINE = parseBoolean(import.meta.env.VITE_ONLINE || '');
+		console.log("IS_ONLINE =", IS_ONLINE)
 
-		// If not in iframe or not online, set mock auth and finish
-		if (!IS_ONLINE || !discordSdk) {
-			console.log('Running in TRULY OFFLINE mode.');
-			setAuth({ user: { username: 'Offline' } });
-			effectiveOnline = false;
-			// Start the game in offline mode
-			addResource(new ConfigResource(effectiveOnline));
-			addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
-			return;
-		}
+		// 1. Handle TRULY OFFLINE case (when VITE_ONLINE is false)
+        if (!IS_ONLINE) {
+            console.log('Running in TRULY OFFLINE mode.');
+            setAuth({ user: { username: 'Offline' } });
+            effectiveOnline = false;
+            // Start the game in offline mode
+            addResource(new ConfigResource(effectiveOnline));
+            addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+            return;
+        }
 
-		// We are online and in the iframe. Start the auth process.
-		async function authenticate() {
-			console.log('Starting Discord authentication...');
-			const authResult = await setupDiscordSDK(
-				discordSdk,
-				backEndUrl,
-				discordBotUrl
-			);
-			let joinData: NetworkDiscordJoinData;
-			if (authResult) {
-				// --- STATE: FULLY ONLINE ---
-				console.log('Discord auth success. Running in FULL ONLINE mode.');
-				setAuth(authResult.auth);
-				joinData = authResult.joinData;
-				addResource(new NetworkResource(backEndUrl, joinData));
-				effectiveOnline = true;
-			} else {
-				// --- STATE: SEMI-OFFLINE ---
-				console.warn('Discord SDK setup failed. Running in SEMI-OFFLINE mode.');
-				joinData = {
-					guildId: 'mock',
-					channelId: 'mock',
-					userId: crypto.randomUUID(),
-				};
-				addResource(new NetworkResource(backEndUrl, joinData));
-				setAuth({ user: { username: 'Offline' } });
-				effectiveOnline = false;
-			}
+        // Handle FULLY ONLINE case (IS_ONLINE=true AND discordSdk is available)
+        if (discordSdk) {
+            // We are online and in the iframe. Start the auth process.
+            async function authenticate() {
+                console.log('Starting Discord authentication...');
+                const authResult = await setupDiscordSDK(
+                    discordSdk,
+                    backEndUrl,
+                    discordBotUrl
+                );
+                let joinData: NetworkDiscordJoinData;
+                if (authResult) {
+                    console.log('Discord auth success. Running in FULL ONLINE mode.');
+                    setAuth(authResult.auth);
+                    joinData = authResult.joinData;
+                    addResource(new NetworkResource(backEndUrl, joinData));
+                    effectiveOnline = true;
+                } else {
+                    console.warn('Discord SDK setup failed. Running in SEMI-OFFLINE mode.');
+                    joinData = {
+                        guildId: 'mock',
+                        channelId: 'mock',
+                        userId: crypto.randomUUID(),
+                    };
+                    addResource(new NetworkResource(backEndUrl, joinData));
+                    setAuth({ user: { username: 'Offline' } });
+                    effectiveOnline = false;
+                }
+                addResource(new ConfigResource(effectiveOnline));
+                addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+            }
 
-			// Regardless of auth outcome, add resources and start the LoadingState
-			addResource(new ConfigResource(effectiveOnline));
-			addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
-		}
+            authenticate().catch((err) => {
+                console.error('Critical error during authentication:', err);
+                addResource(new ConfigResource(false));
+                addResource(
+                    new AppStateResource(
+                        new LoadingState(
+                            new ErrorState(err.message || 'An unknown authentication error occurred'),
+                            undefined, // No task
+                            'Error...'
+                        )
+                    )
+                );
+                setAuth({ user: { username: 'Offline' } }); // Set auth to unblock
+            });
 
-		authenticate().catch((err) => {
-			console.error('Critical error during authentication:', err);
-			addResource(new ConfigResource(false));
-			addResource(
-				new AppStateResource(
-					new LoadingState(
-						new ErrorState(err.message || 'An unknown authentication error occurred'),
-						undefined, // No task
-						'Error...'
-					)
-				)
-			);
-			setAuth({ user: { username: 'Offline' } }); // Set auth to unblock
-		});
+        // 3. Handle SEMI-ONLINE case (IS_ONLINE=true BUT no discordSdk)
+        } else {
+            console.warn('Running in SEMI-OFFLINE mode (IS_ONLINE=true, but no Discord SDK).');
+            // This logic is copied from your `authenticate` function's `else` block
+            const joinData: NetworkDiscordJoinData = {
+                guildId: 'mock',
+                channelId: 'mock',
+                userId: crypto.randomUUID(),
+            };
+            addResource(new NetworkResource(backEndUrl, joinData));
+            setAuth({ user: { username: 'Offline' } });
+            effectiveOnline = false;
+            
+            // Add resources and start LoadingState
+            addResource(new ConfigResource(effectiveOnline));
+            addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+        }
 
 	}, [addResource, backEndUrl, discordBotUrl, initializeWorld])
 

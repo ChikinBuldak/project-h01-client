@@ -1,13 +1,11 @@
-import { isNone, type System, unwrapOpt, World } from "@/types";
-import { Time } from "@/ecs/resources";
+import { type System, type SystemResourcePartial, unwrapOpt, World } from "@/types";
 import { AnimationController, PlayerState, RigidBody } from "@/ecs/components";
 
 export class AnimationSystem implements System {
-    update(world: World): void {
-        const timeRes= world.getResource(Time);
-        if (isNone(timeRes)) return;
+    update(world: World, {time}: SystemResourcePartial): void {
+        if (!time) return;
 
-        const dt = unwrapOpt(timeRes).fixedDeltaTime / 1000; // convert to second
+        const dt = time.fixedDeltaTime / 1000; // convert to second
         const query = world.query(
             AnimationController,
             PlayerState,
@@ -23,23 +21,10 @@ export class AnimationSystem implements System {
                 newState = "run";
             }
             // State changing
-            if (controller.currentState !== newState) {
-                const clip = controller.states.get(newState);
-                if (clip) {
-                    controller.currentState = newState;
-                    controller.currentFrame = 0;
-                    controller.frameTimer = 0;
-                }
-            }
-
+            controller.changeState(newState);
+            
             // tick animation timer
-            const clip = controller.states.get(controller.currentState);
-            if (!clip) continue;
-            controller.frameTimer += dt;
-            if (controller.frameTimer >= clip.frameDuration) {
-                controller.frameTimer -= clip.frameDuration;
-                controller.currentFrame = (controller.currentFrame + 1) % clip.frameCount;
-            }
+            controller.tick(dt);
         }
     }
 }

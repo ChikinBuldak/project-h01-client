@@ -4,10 +4,7 @@ import { useUiStore } from "@/stores";
 import type { MainMenuUiState } from "@/stores/ui.types";
 
 const MainMenuUI: React.FC<{ state: MainMenuUiState }> = ({ state }) => {
-    // 2. Get the sendIntent action from the store
     const sendIntent = useUiStore((s) => s.sendIntent);
-
-    // 3. Create the onClick handler
     const onStartClick = () => {
         sendIntent('StartGame');
     };
@@ -28,7 +25,6 @@ const MainMenuUI: React.FC<{ state: MainMenuUiState }> = ({ state }) => {
             >
                 Start Game
             </div>
-            
             <p>Version: {state.version}</p>
         </div>
     )

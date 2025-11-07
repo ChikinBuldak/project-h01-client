@@ -4,8 +4,12 @@ import { type AppState, World } from '@/types/ecs';
 import { ConfigResource } from '../resources/ConfigResource';
 import type { InGameUiState } from '@/stores/ui.types';
 import { useUiStore } from '@/stores/ui.store';
-import { setupEntities, setupSystems } from '../startup';
+import { setupInGameEntities, setupInGameSystems } from '../startup';
 import { CombatResource, DomResource, NetworkResource, PhysicsResource } from '../resources';
+import { GarbageCollectorSystem, InGameInputSystem, PlayerMovementSystem, DomRenderSystem, PhysicsSystem, AnimationSystem, CombatSystem, DebugRenderSystem, NetworkReceiveSystem, ReconciliationSystem } from '../systems';
+import { PlayerLifecycleSystem } from '../systems/core';
+import { InterpolationSystem } from '../systems/network/InterpolationSystem';
+import { Despawn } from '../components';
 export class InGameState implements AppState {
     private entityInterval: Undefinable<IInterval>;
 
@@ -26,14 +30,12 @@ export class InGameState implements AppState {
 
         const initialState: InGameUiState = {
             type: 'InGame',
-            health: 100,
-            maxHealth: 100,
-            score: 0
-        }
+            isPaused: false
+        } as InGameUiState;
 
         useUiStore.getState().transitionTo(initialState);
-        setupSystems(addSystem, configRes.effectiveOnline);
-        this.entityInterval = setupEntities(
+        setupInGameSystems(addSystem, configRes.effectiveOnline);
+        this.entityInterval = setupInGameEntities(
             addEntity, configRes.effectiveOnline, configRes.config
         );
     }
@@ -46,6 +48,32 @@ export class InGameState implements AppState {
         if (net.some) {
             net.value.disconnect();
         }
+
+        this.cleanup(world)
+    }
+
+    /**
+     * Clean system, entity, and resource up
+     * @param world 
+     */
+    private cleanup(world: World) {
+        // world.clearEntities();
+        for (const entity of world.getEntities()) {
+            entity.addComponent(new Despawn());
+        }
+        world.removeSystem(InGameInputSystem);
+        world.removeSystem(PlayerMovementSystem);
+        world.removeSystem(PhysicsSystem);
+        world.removeSystem(AnimationSystem);
+        world.removeSystem(CombatSystem);
+        world.removeSystem(DebugRenderSystem);
+        world.removeSystem(PlayerLifecycleSystem);
+        world.removeSystem(NetworkReceiveSystem);
+        world.removeSystem(ReconciliationSystem);
+        world.removeSystem(InterpolationSystem);
+
+        world.removeResource(PhysicsResource);
+        world.removeResource(CombatResource);
     }
 
 }

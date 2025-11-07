@@ -15,7 +15,7 @@ export default class MainMenuInputSystem implements System {
 
                 // Define an optional loading task for this transition
                 // (e.g., load a level, or just a fake delay)
-                const loadInGameTask = async (w: World) => {
+                const loadInGameTask = async (_: World) => {
                   console.log("Running In-Game loading task...");
                   await new Promise(res => setTimeout(res, 500)); // 0.5s fake load
                   console.log("In-Game loading task complete.");

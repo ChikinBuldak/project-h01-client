@@ -1,5 +1,5 @@
 import Matter from "matter-js";
-import { type System, World } from "@/types/ecs";
+import { type System, type SystemResourcePartial, World } from "@/types/ecs";
 import { LocalPlayerTag, PlayerState, PredictionHistory, RigidBody } from "@/ecs/components";
 
 import { NetworkResource, Time } from "@/ecs/resources";
@@ -22,12 +22,11 @@ export class PlayerMovementSystem implements System {
         };
     }
 
-    update(world: World): void {
-        const timeRes = world.getResource(Time);
-        if (isNone(timeRes)) return;
+    update(world: World, {time}:SystemResourcePartial): void {
+        if (!time) return;
 
         // get delta time from resource
-        const dt = unwrapOpt(timeRes).fixedDeltaTime / 1000;
+        const dt = time.fixedDeltaTime / 1000;
 
         const localPlayerQuery = world.queryWithEntityAndFilter({
             returnComponents: [RigidBody, PlayerState, PredictionHistory],

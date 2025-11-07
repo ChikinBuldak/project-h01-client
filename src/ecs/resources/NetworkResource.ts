@@ -3,6 +3,7 @@ import { parseServerMessage, SignalMessage, type ClientMessage, type PlayerInput
 import { isNone, isSome, none, some, unwrapOpt } from '../../types/option';
 import { isErr, isOk, tryCatch } from "../../types/result";
 import type { Option } from "../../types/option";
+import { registerResource } from "@/utils/registry/resource.registry";
 
 /**
  * Default RTC configuration. Uses Google's public STUN servers.
@@ -318,4 +319,12 @@ export class NetworkResource implements Resource {
             }
         }
     }
+}
+
+registerResource("networkResource", NetworkResource);
+
+declare module "@/utils/registry/resource.registry" {
+  interface ResourceRegistry {
+    networkResource: NetworkResource;
+  }
 }

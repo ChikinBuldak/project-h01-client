@@ -1,4 +1,5 @@
 import { isErr, tryCatchAsync, type Resource } from "@/types";
+import { registerResource } from "@/utils/registry/resource.registry";
 
 export class AssetServer implements Resource {
     private assets = new Map<string, HTMLImageElement>();
@@ -49,4 +50,11 @@ export class AssetServer implements Resource {
     public get(handle: string): HTMLImageElement | null {
         return this.assets.get(handle) || null;
     }
+}
+
+registerResource("assetServer", AssetServer);
+declare module "@/utils/registry/resource.registry" {
+  interface ResourceRegistry {
+    assetServer: AssetServer;
+  }
 }
