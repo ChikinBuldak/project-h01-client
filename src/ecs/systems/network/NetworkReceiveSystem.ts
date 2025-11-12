@@ -31,7 +31,7 @@ export class NetworkReceiveSystem implements System {
         if (isNone(net)) return;
 
         const network = net.value;
-        const messages = network.drainMessageQueue();
+        const messages = network.drainGameMessageQueue();
 
         // Process all messages in the queue
         while (messages.length > 0) {

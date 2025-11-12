@@ -1,6 +1,6 @@
 import { InGameStateComponent } from "@/ecs/components/scenes/InGameStateComponent";
 import { AppStateResource } from "@/ecs/resources";
-import { MainMenuState } from "@/ecs/states";
+import { MainMenuScene } from "@/ecs/scenes";
 import type { UiIntentSystem } from "@/ecs/systems/render/ui/UiIntentSystem";
 import { useUiStore } from "@/stores";
 import { isSome, unwrapOpt, type World } from "@/types";
@@ -35,7 +35,7 @@ function handleExitToMenu(world: World): void {
 
     if (isSome(appStateOpt)) {
         // immediately exit
-        const mainMenuState = new MainMenuState();
+        const mainMenuState = new MainMenuScene();
         unwrapOpt(appStateOpt).scheduleTransition(mainMenuState);
     } else {
         console.error("AppStateResource not found! Cannot change state.");

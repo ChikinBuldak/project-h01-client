@@ -33,7 +33,7 @@ describe("NetworkResource <-> Signaling Server Integration", () => {
     });
 
     afterAll(() => {
-        network.disconnect();
+        network.disconnectP2P();
     });
 
     it("should handle server create-offer message correctly", async () => {

@@ -1,18 +1,18 @@
-import {  none, OptionWrapper, type AppState, type Resource, type Option, some, isSome, World} from "@/types";
+import {  none, OptionWrapper, type AppScene, type Resource, type Option, some, isSome, World} from "@/types";
 import { registerResource, type ResourceRegistry } from '@/utils/registry/resource.registry';
 
 export class CurrentState implements Resource {
-    private state: AppState;
+    private state: AppScene;
 
-    constructor(initialState: AppState) {
+    constructor(initialState: AppScene) {
         this.state = initialState;
     }
 
-    public get(): AppState {
+    public get(): AppScene {
         return this.state;
     }
 
-    public set(newState: AppState) {
+    public set(newState: AppScene) {
         if (this.state.constructor !== newState.constructor) {
             console.log(`[State] Transitioned from '${this.state.constructor.name}' to '${newState.constructor.name}'`);
             this.state = newState;
@@ -21,13 +21,13 @@ export class CurrentState implements Resource {
 }
 
 export class NextState implements Resource {
-    private state: OptionWrapper<AppState> = OptionWrapper.none();
+    private state: OptionWrapper<AppScene> = OptionWrapper.none();
 
-    public set(newState: AppState) {
+    public set(newState: AppScene) {
         this.state = OptionWrapper.some(newState);
     }
 
-    public take(): OptionWrapper<AppState> {
+    public take(): OptionWrapper<AppScene> {
         if (this.state.isSome()) {
             const next = this.state;
             this.state = OptionWrapper.none();
@@ -38,14 +38,14 @@ export class NextState implements Resource {
 }
 
 export class AppStateResource implements Resource {
-  private currentState: Option<AppState> = none;
-  private nextState: Option<AppState> = none;
+  private currentState: Option<AppScene> = none;
+  private nextState: Option<AppScene> = none;
 
   /**
    * @param initialState The *first* state the app should enter
    * (e.g., LoadingState or MainMenuState).
    */
-  constructor(initialState: AppState) {
+  constructor(initialState: AppScene) {
     // Schedule the initial state to be entered on the first frame
     this.nextState = some(initialState);
   }
@@ -55,7 +55,7 @@ export class AppStateResource implements Resource {
    * to schedule a state transition for the *next* frame.
    * @param next The new AppState instance to transition to.
    */
-  public scheduleTransition(next: AppState) {
+  public scheduleTransition(next: AppScene) {
     this.nextState = some(next);
   }
 
@@ -89,7 +89,7 @@ export class AppStateResource implements Resource {
   /**
    * Gets the currently active state, if any.
    */
-  public getCurrentState(): Option<AppState> {
+  public getCurrentState(): Option<AppScene> {
     return this.currentState;
   }
 }

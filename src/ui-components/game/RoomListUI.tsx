@@ -1,13 +1,11 @@
 import { useUiStore } from "@/stores";
 import { useState, type FC } from "react";
-import type { MainMenuUiState } from '../../stores/ui.types';
 import { getAllRooms } from "@/api/room-manager.api";
 import { useQuery } from "@tanstack/react-query";
 
 
 const RoomListUI: FC = () => {
     const { state, sendIntent } = useUiStore();
-    const mainMenuState = state as MainMenuUiState;
 
     const handleBackToMainMenu = () => {
         sendIntent({ type: 'BackToMainMenu' });
@@ -33,7 +31,6 @@ const RoomListUI: FC = () => {
         refetchOnWindowFocus: (query) =>
             query.state.status !== 'error',
         retry: 1,
-
     });
 
     if (isLoading) {
@@ -95,12 +92,19 @@ const RoomListUI: FC = () => {
                         >
                             <div>
                                 <h3 className="font-semibold">{room.name}</h3>
+                                <p> {room.room_id}</p>
                                 <span className="text-sm text-gray-400">
                                     {room.number_of_members} / {room.max_capacity} players
                                 </span>
                             </div>
                             <button
                                 className="px-3 py-1 font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+                                onClick={() => {
+                                    sendIntent({
+                                        type: 'JoinRoom',
+                                        payload: { roomId: room.room_id },
+                                    })
+                                }}
                             >
                                 Join
                             </button>

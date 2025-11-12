@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { type Entity, World, type System, type Resource } from "../types/ecs";
 import { unwrapOpt } from '../types/option';
+import type { NetworkDiscordJoinData } from "@/ecs/resources";
 
 /**
  * The state slice of the Zustand store containing the world instance
@@ -8,6 +9,8 @@ import { unwrapOpt } from '../types/option';
 interface WorldState {
   /** The single instance of the ECS World */
   world: World;
+  discord: NetworkDiscordJoinData | null;
+  generalUserId?: string
 }
 
 /**
@@ -28,6 +31,7 @@ export interface WorldActions {
   update: (deltaTime: number) => void;
   /** Executes the *render* step for all systems in the world. */
   render: (alpha: number) => void;
+  setDiscordJoinData: (data: NetworkDiscordJoinData | null) => void;
 }
 
 /**
@@ -37,11 +41,20 @@ export type WorldStore = WorldState & WorldActions;
 
 const initialWorld = new World();
 
+const initialDiscordData: NetworkDiscordJoinData | null = null;
+
+export function generateRandomUserId(): string {
+  return 'user-' + Math.random().toString(36).substring(2, 9);
+}
+
+const initialRandomUserId = generateRandomUserId();
 /**
  * Use the {@link WorldStore} to manage state and update
  */
 export const useWorldStore = create<WorldStore>()((set, get) => ({
   world: initialWorld,
+  discord: initialDiscordData,
+  generalUserId: initialRandomUserId,
 
   initializeWorld: () => {
     set({
@@ -84,4 +97,7 @@ export const useWorldStore = create<WorldStore>()((set, get) => ({
       world.render(alpha);
     }
   },
+  setDiscordJoinData: (data) => {
+    set({ discord: data });
+  }
 }));

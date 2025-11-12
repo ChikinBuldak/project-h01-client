@@ -4,6 +4,9 @@ import { isNone, isSome, none, some, unwrapOpt } from '../../types/option';
 import { isErr, isOk, tryCatch } from "../../types/result";
 import type { Option } from "../../types/option";
 import { registerResource } from "@/utils/registry/resource.registry";
+import type { WaitingRoomUiState } from "@/stores";
+import type { LobbyClientMessage, RoomResponsePayload } from "@/types/room-manager.types";
+import { ServerMessageSchema as LobbyServerMessageSchema, type ServerMessage as LobbyServerMessage, type WsAuthRequest } from '../../types/room-manager.types';
 
 /**
  * Default RTC configuration. Uses Google's public STUN servers.
@@ -18,9 +21,9 @@ const DEFAULT_RTC_CONFIG: RTCConfiguration = {
 };
 
 export type NetworkDiscordJoinData = {
-     guildId: string, channelId: string, userId: string 
+    guildId: string, channelId: string, userId: string
 }
-
+export const parseLobbyServerMessage = (data: unknown) => LobbyServerMessageSchema.safeParse(data);
 /**
  * A "Resource" that manages the WebRTC P2P connection.
  * Systems can query for this resource to send messages or check status.
@@ -31,32 +34,59 @@ export type NetworkDiscordJoinData = {
  * over the RTCDataChannel.
  */
 export class NetworkResource implements Resource {
+    // P2P Game properties
     private _signalingSocket: Option<WebSocket> = none;
+    private _signalingUrl: string;
     public isConnected: boolean = false;
     private _peerConnection: Option<RTCPeerConnection> = none;
     private _dataChannel: Option<RTCDataChannel> = none;
     private rtcConfig: RTCConfiguration;
-    private messageQueue: ServerMessage[] = [];
+    private gameMessageQueue: ServerMessage[] = [];
+
+    // Shared properties
     private stringIdToEntityId: Map<string, number> = new Map();
     private guildId: string;
     private channelId: string;
     private userId: string;
 
-    constructor(signalingUrl: string, 
-        joinData: { guildId: string, channelId: string, userId: string },
+    // Waiting room fields
+    private lobbyMessageQueue: LobbyServerMessage[] = [];
+    public isLobbyConnected: boolean = false;
+    public isLobbyConnecting: boolean = false;
+    private _waitingRoomSocket: Option<WebSocket> = none;
+    private _waitingRoomUrl: string;
+    private _lobbyAuth: WsAuthRequest;
+
+    constructor(signalingUrl: string,
+        waitingRoomUrl: string,
+        joinData: { guildId: string, channelId: string, userId: string } | { userId: string },
         rtcConfig: RTCConfiguration = DEFAULT_RTC_CONFIG
     ) {
         this.rtcConfig = rtcConfig;
-        this.guildId = joinData.guildId;
-        this.channelId = joinData.channelId;
+        const guildId = 'guildId' in joinData ? joinData.guildId : '';
+        const channelId = 'channelId' in joinData ? joinData.channelId : '';
+        this.guildId = guildId
+        this.channelId = channelId
         this.userId = joinData.userId;
-        this.connect(signalingUrl);
+
+        this._waitingRoomUrl = waitingRoomUrl;
+        this._signalingUrl = signalingUrl;
+
+        this._lobbyAuth = guildId !== '' && channelId !== '' ? {
+            type: 'Discord',
+            guild_id: guildId,
+            channel_id: channelId,
+            user_id: joinData.userId
+        } : {
+            type: 'General',
+            user_id: joinData.userId
+        };
     }
 
     /**
      * Attempts to connect to the WebSocket server.
      */
-    private connect(url: string) {
+    private connectToSignalingServer(url: string) {
         if (isSome(this._signalingSocket)) {
             console.warn("[NetworkResource] Already connected or connecting.");
             return;
@@ -75,7 +105,7 @@ export class NetworkResource implements Resource {
         ws.onopen = () => {
             // this.isConnected = true;
             console.log("[NetworkResource] Signaling socket connected.");
-            this.sendSignalingMessage({ 
+            this.sendSignalingMessage({
                 type: 'join',
                 guild_id: this.guildId,
                 channel_id: this.channelId,
@@ -97,7 +127,7 @@ export class NetworkResource implements Resource {
         ws.onclose = () => {
             console.log("[NetworkResource] Signaling socket Disconnected.");
             this._signalingSocket = none;
-            this.disconnect();
+            this.disconnectP2P();
         };
 
         ws.onerror = (error) => {
@@ -106,10 +136,16 @@ export class NetworkResource implements Resource {
         };
     }
 
+    public disconnect() {
+        this.disconnectP2P();
+        this.disconnectFromWaitingRoom();
+        console.log("[NetworkResource] All connections closed");
+    }
+
     /**
      * Closes the WebSocket connection.
      */
-    public disconnect() {
+    public disconnectP2P() {
         if (isSome(this._dataChannel)) {
             this._dataChannel.value.close();
         }
@@ -156,7 +192,7 @@ export class NetworkResource implements Resource {
         pc.onconnectionstatechange = () => {
             console.log(`[NetworkResource] PC State: ${pc.connectionState}`);
             if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-                this.disconnect();
+                this.disconnectP2P();
             }
         }
     }
@@ -192,7 +228,7 @@ export class NetworkResource implements Resource {
         channel.onerror = (error) => {
             console.error("[NetworkResource] Data Channel Error:", error);
         };
-        
+
         channel.onmessage = (event) => {
             const parseResult = tryCatch(() => JSON.parse(event.data));
             if (isErr(parseResult)) {
@@ -208,7 +244,7 @@ export class NetworkResource implements Resource {
             }
 
             // Add the valid message to the queue
-            this.messageQueue.push(messageResult.data);
+            this.gameMessageQueue.push(messageResult.data);
         };
     }
 
@@ -291,9 +327,9 @@ export class NetworkResource implements Resource {
      * Drains the message queue, returning all pending messages.
      * @returns An array of ServerMessage.
      */
-    public drainMessageQueue(): ServerMessage[] {
-        const messages = [...this.messageQueue];
-        this.messageQueue = [];
+    public drainGameMessageQueue(): ServerMessage[] {
+        const messages = [...this.gameMessageQueue];
+        this.gameMessageQueue = [];
         return messages;
     }
 
@@ -307,8 +343,8 @@ export class NetworkResource implements Resource {
         return this.stringIdToEntityId.get(serverId);
     }
 
-    public getMessageQueue() {
-        return this.messageQueue;
+    public getGameMessageQueue() {
+        return this.gameMessageQueue;
     }
 
     public removeMappingByEntityId(entityId: number) {
@@ -319,12 +355,114 @@ export class NetworkResource implements Resource {
             }
         }
     }
+
+    // =======================================================================   
+    /// ====================Waiting ROOM API=================================
+    // ========================================================================
+
+    public connectToWaitingRoom() {
+        if (isSome(this._waitingRoomSocket) || this.isLobbyConnecting) {
+            console.warn("[NetworkResource] Already connected or connecting to Waiting Room.");
+            return;
+        }
+
+        this.isLobbyConnecting = true;
+        const connectResult = tryCatch(() => new WebSocket(this._waitingRoomUrl));
+        if (isErr(connectResult)) {
+            console.error("[NetworkResource] Failed to create Waiting Room WebSocket:", connectResult.error);
+            this.isLobbyConnecting = false;
+            return;
+        }
+
+        const ws = connectResult.value;
+        this._waitingRoomSocket = some(ws);
+        console.log(`[NetworkResource] Connecting to Waiting Room ${this._waitingRoomUrl}...`);
+
+        ws.onopen = this.handleWaitingRoomOpen;
+        ws.onmessage = this.handleWaitingRoomMessage;
+        ws.onclose = this.handleWaitingRoomClose;
+        ws.onerror = this.handleWaitingRoomError;
+    }
+
+    private handleWaitingRoomOpen = () => {
+        console.log("[NetworkResource] Waiting Room socket connected. Authenticating...");
+        this.isLobbyConnecting = false;
+        this.isLobbyConnected = true;
+        this.sendWaitingRoomMessage(this._lobbyAuth);
+    };
+
+    private handleWaitingRoomMessage = (event: MessageEvent) => {
+        const parseResult = tryCatch(() => JSON.parse(event.data));
+        if (isErr(parseResult)) {
+            console.error("[NetworkResource] Failed to parse lobby message JSON:", parseResult.error);
+            return;
+        }
+
+        console.log(parseResult.value);
+
+        const messageResult = parseLobbyServerMessage(parseResult.value);
+        if (!messageResult.success) {
+            console.warn("[NetworkResource] Received invalid lobby message shape:", messageResult.error);
+            return;
+        }
+
+        const data = messageResult.data;
+        this.lobbyMessageQueue.push(data);
+    };
+
+    private handleWaitingRoomClose = () => {
+        console.log("[NetworkResource] Waiting Room socket disconnected.");
+        this._waitingRoomSocket = none;
+        this.isLobbyConnected = false;
+        this.isLobbyConnecting = false;
+    };
+
+    private handleWaitingRoomError = (error: Event) => {
+        console.error("[NetworkResource] Waiting Room WebSocket Error:", error);
+        this._waitingRoomSocket = none;
+        this.isLobbyConnected = false;
+        this.isLobbyConnecting = false;
+    };
+
+
+    /**
+     * Sends a message to the Waiting Room WebSocket server.
+     */
+    public sendWaitingRoomMessage(message: LobbyClientMessage | WsAuthRequest) {
+        if (isSome(this._waitingRoomSocket) && this._waitingRoomSocket.value.readyState === WebSocket.OPEN) {
+            const serializeResult = tryCatch(() => JSON.stringify(message));
+            if (isOk(serializeResult)) {
+                this._waitingRoomSocket.value.send(serializeResult.value);
+            } else {
+                console.error("[NetworkResource] Failed to serialize lobby message:", serializeResult.error);
+            }
+        } else {
+            console.warn("[NetworkResource] Waiting Room socket not open, cannot send message.");
+        }
+    }
+
+    public drainLobbyMessageQueue(): LobbyServerMessage[] {
+        const messages = [...this.lobbyMessageQueue];
+        this.lobbyMessageQueue = [];
+        return messages;
+    }
+
+    public disconnectFromWaitingRoom() {
+        if (isSome(this._waitingRoomSocket)) {
+            this._waitingRoomSocket.value.close();
+        }
+        this._waitingRoomSocket = none;
+        this.isLobbyConnected = false;
+        this.isLobbyConnecting = false;
+        console.log("[NetworkResource] Waiting Room connection closed.");
+    }
+
 }
 
 registerResource("networkResource", NetworkResource);
 
 declare module "@/utils/registry/resource.registry" {
-  interface ResourceRegistry {
-    networkResource: NetworkResource;
-  }
+    interface ResourceRegistry {
+        networkResource: NetworkResource;
+    }
 }

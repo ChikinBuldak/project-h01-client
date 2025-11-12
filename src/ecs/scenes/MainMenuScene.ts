@@ -1,11 +1,11 @@
-import { Entity, type AppState, type World } from "@/types";
+import { Entity, type AppScene, type World } from "@/types";
 import MenuStateComponent from "../components/ui/MenuStateComponent";
 import type { MainMenuUiState } from "@/stores/ui.types";
 import { useUiStore } from "@/stores/ui.store";
 import { MainMenuUiRenderSystem } from "../systems";
 import MainMenuInputSystem from '../systems/core/input/MainMenuInputSystem';
 
-export class MainMenuState implements AppState {
+export class MainMenuScene implements AppScene {
     onEnter(world: World): void {
         world.addEntity(
             new Entity()

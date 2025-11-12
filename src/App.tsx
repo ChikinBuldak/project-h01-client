@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { useGameLoop } from './hooks/world.hooks'
-import { useWorldStore } from './stores/world.store'
+import { generateRandomUserId, useWorldStore } from './stores/world.store'
 import { DiscordSDK, type IDiscordSDK } from '@discord/embedded-app-sdk'
 import { NetworkResource, type NetworkDiscordJoinData } from './ecs/resources'
 import { parseBoolean, setupDiscordSDK } from './utils';
-import { LoadingState } from './ecs/states/LoadingState'
+import { LoadingScene } from './ecs/scenes/LoadingScene'
 import { ConfigResource } from './ecs/resources/ConfigResource'
 import { AppStateResource } from './ecs/resources/state.resource'
-import ErrorState from './ecs/states/ErrorState'
+import ErrorScene from './ecs/scenes/ErrorScene'
 
-import { initialAppLoadTask, MainMenuState } from './ecs/states'
+import { initialAppLoadTask, MainMenuScene } from './ecs/scenes'
 import GameUIManager from './ui-components/game/GameUIManager'
 
 const queryParams = new URLSearchParams(window.location.search);
@@ -84,11 +84,12 @@ function TestPage() {
 
 function App() {
 	useGameLoop();
-	const { initializeWorld, addResource } = useWorldStore.getState();
+	const { initializeWorld, addResource, setDiscordJoinData } = useWorldStore.getState();
 	const initRef = useRef(false);
 	const [auth, setAuth] = useState<{ user: { username: string } } | null>(null);
 	const backEndUrl = import.meta.env.VITE_BACKEND_URL;
 	const discordBotUrl = import.meta.env.VITE_DISCORD_BOT_URL;
+	const waitingRoomUrl = import.meta.env.VITE_WAITING_ROOM_URL;
 
 	useEffect(() => {
 		if (RUN_TEST_PAGE) return;
@@ -106,7 +107,7 @@ function App() {
             effectiveOnline = false;
             // Start the game in offline mode
             addResource(new ConfigResource(effectiveOnline));
-            addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+            addResource(new AppStateResource(new LoadingScene(new MainMenuScene(), initialAppLoadTask)));
             return;
         }
 
@@ -125,21 +126,20 @@ function App() {
                     console.log('Discord auth success. Running in FULL ONLINE mode.');
                     setAuth(authResult.auth);
                     joinData = authResult.joinData;
-                    addResource(new NetworkResource(backEndUrl, joinData));
+                    addResource(new NetworkResource(backEndUrl, waitingRoomUrl, joinData));
+					setDiscordJoinData(joinData);
                     effectiveOnline = true;
                 } else {
                     console.warn('Discord SDK setup failed. Running in SEMI-OFFLINE mode.');
-                    joinData = {
-                        guildId: 'mock',
-                        channelId: 'mock',
-                        userId: crypto.randomUUID(),
+                    let thisJoinData = {
+                        userId: generateRandomUserId(),
                     };
-                    addResource(new NetworkResource(backEndUrl, joinData));
+                    addResource(new NetworkResource(backEndUrl, waitingRoomUrl, thisJoinData));
                     setAuth({ user: { username: 'Offline' } });
                     effectiveOnline = false;
                 }
                 addResource(new ConfigResource(effectiveOnline));
-                addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+                addResource(new AppStateResource(new LoadingScene(new MainMenuScene(), initialAppLoadTask)));
             }
 
             authenticate().catch((err) => {
@@ -147,8 +147,8 @@ function App() {
                 addResource(new ConfigResource(false));
                 addResource(
                     new AppStateResource(
-                        new LoadingState(
-                            new ErrorState(err.message || 'An unknown authentication error occurred'),
+                        new LoadingScene(
+                            new ErrorScene(err.message || 'An unknown authentication error occurred'),
                             undefined, // No task
                             'Error...'
                         )
@@ -161,18 +161,17 @@ function App() {
         } else {
             console.warn('Running in SEMI-OFFLINE mode (IS_ONLINE=true, but no Discord SDK).');
             // This logic is copied from your `authenticate` function's `else` block
-            const joinData: NetworkDiscordJoinData = {
-                guildId: 'mock',
-                channelId: 'mock',
-                userId: crypto.randomUUID(),
+            const joinData = {
+				// generate random id
+                userId: generateRandomUserId()
             };
-            addResource(new NetworkResource(backEndUrl, joinData));
+            addResource(new NetworkResource(backEndUrl, waitingRoomUrl,  joinData));
             setAuth({ user: { username: 'Offline' } });
             effectiveOnline = false;
             
             // Add resources and start LoadingState
             addResource(new ConfigResource(effectiveOnline));
-            addResource(new AppStateResource(new LoadingState(new MainMenuState(), initialAppLoadTask)));
+            addResource(new AppStateResource(new LoadingScene(new MainMenuScene(), initialAppLoadTask)));
         }
 
 	}, [addResource, backEndUrl, discordBotUrl, initializeWorld])

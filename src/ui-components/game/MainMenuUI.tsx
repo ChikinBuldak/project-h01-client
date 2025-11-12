@@ -3,6 +3,7 @@
 import { useUiStore } from "@/stores";
 import type { MainMenuUiState } from "@/stores/ui.types";
 import RoomListUI from "./RoomListUI";
+import WaitingRoomUI from "./WaitingRoomUI";
 
 const MainMenuUI: React.FC<{ state: MainMenuUiState }> = ({ state }) => {
     const sendIntent = useUiStore((s) => s.sendIntent);

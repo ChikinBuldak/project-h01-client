@@ -1,8 +1,12 @@
-import { AppStateResource } from "@/ecs/resources";
-import { InGameState, LoadingState } from "@/ecs/states";
+import { AppStateResource, NetworkResource } from "@/ecs/resources";
+import { InGameScene, LoadingScene } from "@/ecs/scenes";
 import type { UiIntentSystem } from "@/ecs/systems/render/ui/UiIntentSystem";
-import { useUiStore, type MainMenuUiState } from "@/stores";
+import { useUiStore, useWorldStore, type MainMenuUiState } from "@/stores";
+import { useWaitingRoomStore } from "@/stores/waiting-room.store";
 import { isSome, unwrapOpt, type World } from "@/types";
+import type { WsAuthRequest } from '../../types/room-manager.types';
+import { LobbyStateComponent } from "@/ecs/components/network/lobby-room.component";
+import { JoinRoomEvent, LeaveRoomEvent } from "@/ecs/events/LobbyEvent";
 
 function handleStartGame(world: World): void {
     const appStateOpt = world.getResource(AppStateResource);
@@ -16,8 +20,8 @@ function handleStartGame(world: World): void {
             console.log("In-Game loading task complete.");
         };
 
-        const loadingState = new LoadingState(
-            new InGameState(),  // The state to go to *after*
+        const loadingState = new LoadingScene(
+            new InGameScene(),  // The state to go to *after*
             loadInGameTask,     // The async task to run
             'Loading Game...'   // The message to show
         );
@@ -61,6 +65,51 @@ function handleBackToMainMenu(world: World): void {
     }
 }
 
+function handleJoinRoom(world: World, payload: { roomId: string }): void {
+    const {state, transitionTo } = useUiStore.getState();
+    const networkRes = world.getResource(NetworkResource);
+    if (!networkRes.some) {
+        console.error("NetworkResource not found! Cannot join room.");
+        return;
+    }
+
+    const lobbyStateRes = world.querySingle(LobbyStateComponent);
+    if (!lobbyStateRes.some) {
+        console.error("LobbyStateComponent not found! Cannot join room.");
+        return;
+    }
+    const network = networkRes.value;
+    const [lobbyState] = lobbyStateRes.value;
+    lobbyState.pendingJoinRoomId = payload.roomId;
+    console.log(`[handleJoinRoom] Set pendingJoinRoomId to ${payload.roomId}`)
+    if (lobbyState.status === "disconnected") {
+        console.log("Not connected to lobby, initiating connection...");
+        network.connectToWaitingRoom();
+    }
+
+    // 3. Transition the UI to the waiting room immediately
+    transitionTo({
+        ...state,
+        type: 'WaitingRoom',
+        roomId: payload.roomId
+    });
+}
+
+function handleLeaveRoom(world: World): void {
+    // 1. Send the event.
+    // The LobbyConnectionSystem will find this, send the network message,
+    // and the server will close the connection.
+    world.sendEvent(new LeaveRoomEvent());
+
+    // 2. Transition the UI back to the main menu
+    useUiStore.getState().transitionTo({
+        type: 'MainMenu',
+        currentSection: 'Main',
+        selectedButton: 'SearchForRooms',
+        version: '1.0.0', // Assuming version is needed
+    });
+};
+
 /**
  * Registers all handlers for the Main Menu state with the UiIntentSystem.
  * This is called once when the UiIntentSystem is created.
@@ -69,6 +118,8 @@ export function registerMainMenuIntents(system: UiIntentSystem): void {
     system.register('Start', handleStartGame);
     system.register('SearchForRooms', handleSearchForRooms);
     system.register('BackToMainMenu', handleBackToMainMenu);
+    system.register('JoinRoom', handleJoinRoom);
+    system.register('LeaveRoom', handleLeaveRoom);
     // Register 'Options' here when you have it
     // system.register('Options', handleOptions);
 }

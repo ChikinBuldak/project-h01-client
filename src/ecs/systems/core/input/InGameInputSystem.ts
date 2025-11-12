@@ -7,7 +7,6 @@ import { AttackRequest } from "@/ecs/components/character/AttackRequest";
 import { useUiStore } from "@/stores";
 import { InGameStateComponent } from "@/ecs/components/scenes/InGameStateComponent";
 import { match } from "@/types/utils";
-import { MainMenuState } from "@/ecs/states";
 
 export class InGameInputSystem implements System {
     update(world: World, { time }: SystemResourcePartial): void {

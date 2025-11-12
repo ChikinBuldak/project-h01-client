@@ -6,7 +6,7 @@ import type { World } from "@/types";
 // Data for the Main Menu
 export interface MainMenuUiState {
   type: 'MainMenu';
-  currentSection: 'Main' | 'Options' | 'RoomSearch';
+  currentSection: 'Main' | 'Options' | 'RoomSearch' | 'WaitingRoom';
   selectedButton: MainMenuIntent;
   version: string;
 }
@@ -23,8 +23,17 @@ export interface LoadingUiState {
   message: string;
 }
 
+export interface WaitingRoomUiState {
+  type: 'WaitingRoom';
+  roomId: string; // The room we are trying to join
+}
+
 // A discriminated union of all possible UI states
-export type UiState = MainMenuUiState | InGameUiState | LoadingUiState;
+export type UiState = 
+| MainMenuUiState 
+| InGameUiState 
+| LoadingUiState
+| WaitingRoomUiState;
 
 type DistributePartial<T> = T extends any ? Partial<T> : never;
 export type PartialUiState = DistributePartial<UiState>;
@@ -36,10 +45,17 @@ export interface IntentMap  {
   'Options': void;
   'SearchForRooms': void;
   'BackToMainMenu': void;
+  'CreateRoom': void;
+  "JoinRoom": { roomId: string };
+  
   
   // In-Game Intents
   'ResumeGame': void;
   'ExitToMenu': void;
+
+  // Waiting Room Intents
+  'LeaveRoom': void;
+  'StartGame': void;
 }
 
 export type UserIntent = {

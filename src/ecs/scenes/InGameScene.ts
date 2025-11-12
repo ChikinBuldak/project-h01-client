@@ -1,6 +1,6 @@
 import { useWorldStore } from '@/stores';
 import type { IInterval, Undefinable } from '@/types';
-import { type AppState, World } from '@/types/ecs';
+import { type AppScene, World } from '@/types/ecs';
 import { ConfigResource } from '../resources/ConfigResource';
 import type { InGameUiState } from '@/stores/ui.types';
 import { useUiStore } from '@/stores/ui.store';
@@ -12,7 +12,7 @@ import { InterpolationSystem } from '../systems/network/InterpolationSystem';
 import { Despawn } from '../components';
 import AudioRequestEvent from '../events/AudioRequestEvent';
 
-export class InGameState implements AppState {
+export class InGameScene implements AppScene {
     private entityInterval: Undefinable<IInterval>;
 
     onEnter(world: World): void {
@@ -54,7 +54,7 @@ export class InGameState implements AppState {
 
         const net = world.getResource(NetworkResource);
         if (net.some) {
-            net.value.disconnect();
+            net.value.disconnectP2P();
         }
 
         this.cleanup(world)

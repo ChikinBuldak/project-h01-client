@@ -1,17 +1,17 @@
 import { useWorldStore } from "@/stores";
 import { useUiStore } from "@/stores/ui.store";
 import type { LoadingUiState } from "@/stores/ui.types";
-import { InputManager, isErr, isSome, tryCatchAsync, unwrapOpt, withTimeout, type AppState, type World } from "@/types";
+import { InputManager, isErr, isSome, tryCatchAsync, unwrapOpt, withTimeout, type AppScene, type World } from "@/types";
 import { AssetServer, AudioServer } from "../resources";
 import { ConfigResource } from "../resources/ConfigResource";
 import { setupCoreSystems, setupResources } from "../startup";
 import { AppStateResource } from "../resources/state.resource";
-import ErrorState from "./ErrorState";
+import ErrorScene from "./ErrorScene";
 // This is the new, generic signature for any async loading work
 type LoadingTask = (world: World) => Promise<void>;
 
-export class LoadingState implements AppState {
-    private nextState: AppState;
+export class LoadingScene implements AppScene {
+    private nextState: AppScene;
     private loadingTask?: LoadingTask;
     private message: string = 'Loading...';
     /**
@@ -19,7 +19,7 @@ export class LoadingState implements AppState {
      * @param loadingTask An optional async function to run while this state is active.
      * @param message A message to display on the loading screen.
      */
-    constructor(nextState: AppState, loadingTask?: LoadingTask, message: string = 'Loading...'
+    constructor(nextState: AppScene, loadingTask?: LoadingTask, message: string = 'Loading...'
     ) { 
         this.nextState = nextState;
         this.loadingTask = loadingTask;
@@ -55,7 +55,7 @@ export class LoadingState implements AppState {
             console.error('Critical error during loading task:', err);
             const appStateOpt = world.getResource(AppStateResource);
             if (isSome(appStateOpt)) {
-                unwrapOpt(appStateOpt).scheduleTransition(new ErrorState((err as Error).message || 'Failed to load'));
+                unwrapOpt(appStateOpt).scheduleTransition(new ErrorScene((err as Error).message || 'Failed to load'));
             }
         }
     }

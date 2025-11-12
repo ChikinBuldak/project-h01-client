@@ -23,7 +23,7 @@ export interface EventECS { }
 /**
  * Every application state (like MainMenu, InGame) will implement this.
  */
-export interface AppState {
+export interface AppScene {
     /**
      * Logic that will be run once after entering this state. use this
      * to initiate all systems and entities required
@@ -122,10 +122,19 @@ export class World {
     }
     addSystem(system: System): this {
         this.systems.set(system.constructor, system);
+        console.log(`[World] ${system.constructor.name} is Added`);
         return this;
     }
     removeSystem<T extends System>(ctor: SystemCtor<T>): boolean {
         return this.systems.delete(ctor);
+    }
+
+    addComponent(entity: Entity, component: Component) {
+        entity.addComponent(component);
+    }
+
+    removeComponent<T extends Component>(entity: Entity, component: ComponentCtor<T>) {
+        entity.removeComponent(component);
     }
 
     /**

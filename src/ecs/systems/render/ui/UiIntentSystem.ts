@@ -28,13 +28,13 @@ export class UiIntentSystem implements System {
     }
 
     update(world: World, _resources: SystemResourcePartial): void {
-        const { userIntent, resetIntent } = useUiStore.getState();
+        const { userIntent} = useUiStore.getState();
 
         // No intent to process
         if (!userIntent) {
             return;
         }
-
+        
         // Find the registered handler for this intent
         const handler = this.intentHandlers.get(userIntent.type);
 
@@ -47,9 +47,9 @@ export class UiIntentSystem implements System {
             // but no system registered a handler for it.
             console.error(`No intent handler registered for type: "${userIntent.type}"`);
         }
-
+        
         // IMPORTANT: Clear the intent from the store so it's only processed once.
-        resetIntent();
+        queueMicrotask(() => useUiStore.getState().resetIntent());
     }
     render?(_world: World): void {}
 

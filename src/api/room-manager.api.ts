@@ -3,7 +3,6 @@
 
 import { err, ok, type Result } from "@/types";
 import { zRoomPayloadSchema, type CreateRoomRequest, type RoomResponsePayload } from "@/types/room-manager.types";
-import { createRoomIdString } from "@/utils";
 import z from "zod";
 
 const ROOM_MANAGER_URL = import.meta.env.VITE_DISCORD_BOT_URL || '';

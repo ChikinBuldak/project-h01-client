@@ -1,8 +1,8 @@
 import { useUiStore } from "@/stores/ui.store";
 import type { LoadingUiState } from "@/stores/ui.types";
-import type { AppState, World } from "@/types";
+import type { AppScene, World } from "@/types";
 
-export default class ErrorState implements AppState {
+export default class ErrorScene implements AppScene {
     private errorMessage: string;
     constructor(errorMessage: string) { 
         this.errorMessage = errorMessage;
