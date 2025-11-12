@@ -5,5 +5,5 @@ export * from './ConfigResource';
 export * from './DomResource';
 export * from './NetworkResource';
 export * from './PhysicsResource';
-export * from './state';
+export * from './state.resource';
 export * from './Time';

@@ -80,10 +80,20 @@ type MatchHandlers<TUnion extends { type: string }, TReturn> =
 
 /**
  * A type-safe pattern matching function for discriminated unions.
- * This is a curried function to fix type inference.
  *
- * @param value The discriminated union object to match against.
- * @returns A new function that accepts the handlers object.
+ * @example
+ * type Action =
+ *   | { type: "Toggle"; value: boolean }
+ *   | { type: "Patch"; path: string };
+ *
+ * const action: Action = { type: "Toggle", value: true };
+ *
+ * const result = match(action)({
+ *   Toggle: (a) => `Toggled: ${a.value}`,
+ *   Patch: (a) => `Patched: ${a.path}`,
+ * });
+ *
+ * console.log(result); // "Toggled: true"
  */
 export function match<TUnion extends { type: string }>(value: TUnion) {
   /**
@@ -155,12 +165,20 @@ type ValueMatchHandlers<TValue, TReturn> =
   | NonExhaustiveValueHandlers<TValue, TReturn>;
 
 /**
- * A type-safe pattern matching function for primitive unions (string | number | null | undefined).
+ * A type-safe pattern matching function for primitive values.
  *
- * @param value The primitive value to match against.
- * @returns A new function that accepts the handlers object.
+ * @example
+ * const value = "Start";
+ *
+ * const result = matchValue(value)( {
+ *   Start: () => "Starting...",
+ *   Stop: () => "Stopping...",
+ *   _: () => "Unknown",
+ * });
+ *
+ * console.log(result); // "Starting..."
  */
-export function matchValue<TValue extends string | number | null | undefined>(value: TValue) {
+export function matchValue<TValue extends string | number | null | undefined>(userIntent: string | null, p0: { Start: () => void; }, value: TValue) {
   /**
    * The inner function that receives the handlers.
    */
@@ -188,3 +206,72 @@ export function matchValue<TValue extends string | number | null | undefined>(va
     throw new Error(`Unhandled matchValue case: ${key}`);
   };
 }
+
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(`${label} timed out after ${ms}ms`));
+        }, ms);
+        promise
+            .then((value) => {
+                clearTimeout(timer);
+                resolve(value);
+            })
+            .catch((err) => {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
+}
+
+/**
+ * A generic procedural decorator.
+ *
+ * A decorator is a function that takes another function `fn`
+ * and returns a new function with additional behavior.
+ *
+ * @example
+ * const log: Decorator = (fn) => (...args) => {
+ *   console.log("Before");
+ *   const result = fn(...args);
+ *   console.log("After");
+ *   return result;
+ * };
+ *
+ * const greet = log(() => console.log("Hello!"));
+ * greet(); // Before → Hello! → After
+ */
+export type Decorator<
+  Fn extends (...args: any[]) => any = (...args: any[]) => any
+> = (fn: Fn) => Fn;
+
+/**
+ * Apply one or more decorators to a function.
+ *
+ * @example
+ * const log: Decorator = (fn) => (...args) => {
+ *   console.log("Calling", fn.name);
+ *   return fn(...args);
+ * };
+ *
+ * const time: Decorator = (fn) => (...args) => {
+ *   const start = performance.now();
+ *   const result = fn(...args);
+ *   console.log(`${fn.name} took ${performance.now() - start}ms`);
+ *   return result;
+ * };
+ *
+ * const greet = applyDecorators(() => console.log("Hi!"), [log, time]);
+ * greet(); // logs both "Calling" and duration
+ */
+export function applyDecorators<
+  Fn extends (...args: any[]) => any
+>(fn: Fn, decorators: Decorator<Fn>[]): Fn {
+  return decorators.reduceRight((wrapped, deco) => deco(wrapped), fn);
+}
+
+/**
+ * Create Rust-style Enum in TypeScript
+ */
+export type EnumVariant<Type extends string, Others extends object = {}> = 
+  Readonly<{ type: Type } & Others>;

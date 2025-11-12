@@ -1,11 +1,11 @@
 import { useWorldStore } from "@/stores";
 import { useUiStore } from "@/stores/ui.store";
 import type { LoadingUiState } from "@/stores/ui.types";
-import { InputManager, isErr, isSome, tryCatchAsync, unwrapOpt, type AppState, type World } from "@/types";
+import { InputManager, isErr, isSome, tryCatchAsync, unwrapOpt, withTimeout, type AppState, type World } from "@/types";
 import { AssetServer, AudioServer } from "../resources";
 import { ConfigResource } from "../resources/ConfigResource";
 import { setupCoreSystems, setupResources } from "../startup";
-import { AppStateResource } from "../resources/state";
+import { AppStateResource } from "../resources/state.resource";
 import ErrorState from "./ErrorState";
 // This is the new, generic signature for any async loading work
 type LoadingTask = (world: World) => Promise<void>;
@@ -95,7 +95,7 @@ export const initialAppLoadTask: LoadingTask = async (world: World) => {
     // Preload audio
     uiStore.updateCurrentState({ progress: 50, message: 'Loading audio...' });
     const loadAudioRes = await tryCatchAsync(() =>
-        audioServer.preload(config.assets.audio)
+        withTimeout(audioServer.preload(config.assets.audio), 10000, "Audio preload")
     );
     if (isErr(loadAudioRes)) {
         console.error(`Error loading audio assets: ${loadAudioRes.error}`);

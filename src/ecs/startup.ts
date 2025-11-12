@@ -18,6 +18,7 @@ import { PlayerLifecycleSystem } from './systems/core/PlayerLifecycleSystem';
 import { LogSystem } from './systems/others/LogSystem';
 import { InGameInputSystem } from './systems/core/input/InGameInputSystem';
 import { InGameStateComponent } from './components/scenes/InGameStateComponent';
+import { UiIntentSystem } from './systems/render/ui/UiIntentSystem';
 
 export function setupCoreSystems(
     addSystem: (sys: System) => void
@@ -25,7 +26,8 @@ export function setupCoreSystems(
     addSystem(new LogSystem());
     addSystem(new AudioSystem());
     addSystem(new GarbageCollectorSystem());
-        addSystem(new DomRenderSystem());
+    addSystem(new DomRenderSystem());
+    addSystem(new UiIntentSystem());
 }
 /**
  * Adds all necessary resources to the world.

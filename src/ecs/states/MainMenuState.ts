@@ -13,6 +13,7 @@ export class MainMenuState implements AppState {
         );
 
         const initialState: MainMenuUiState =  {
+            currentSection: 'Main',
             type: 'MainMenu',
             selectedButton: 'Start',
             version: 'v1.0.0'

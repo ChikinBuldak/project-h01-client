@@ -7,7 +7,7 @@ import { NetworkResource, type NetworkDiscordJoinData } from './ecs/resources'
 import { parseBoolean, setupDiscordSDK } from './utils';
 import { LoadingState } from './ecs/states/LoadingState'
 import { ConfigResource } from './ecs/resources/ConfigResource'
-import { AppStateResource } from './ecs/resources/state'
+import { AppStateResource } from './ecs/resources/state.resource'
 import ErrorState from './ecs/states/ErrorState'
 
 import { initialAppLoadTask, MainMenuState } from './ecs/states'
@@ -99,7 +99,7 @@ function App() {
 		const IS_ONLINE = parseBoolean(import.meta.env.VITE_ONLINE || '');
 		console.log("IS_ONLINE =", IS_ONLINE)
 
-		// 1. Handle TRULY OFFLINE case (when VITE_ONLINE is false)
+		// Handle TRULY OFFLINE case (when VITE_ONLINE is false)
         if (!IS_ONLINE) {
             console.log('Running in TRULY OFFLINE mode.');
             setAuth({ user: { username: 'Offline' } });

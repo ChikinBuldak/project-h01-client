@@ -4,6 +4,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 import path from 'path'
 import fs from 'fs';
 import { DiscordProxy } from '@robojs/patch';
+import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -14,7 +15,7 @@ export default defineConfig({
       },
     }),
     DiscordProxy.Vite(),
-    // basicSsl()
+    tailwindcss()
   ],
   resolve: {
     alias: {

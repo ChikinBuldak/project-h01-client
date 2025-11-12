@@ -1,11 +1,13 @@
 // src/stores/ui.types.ts
 
 import type { InGameStateType } from "@/ecs/components/scenes/InGameStateComponent";
+import type { World } from "@/types";
 
 // Data for the Main Menu
 export interface MainMenuUiState {
   type: 'MainMenu';
-  selectedButton: 'Start' | 'Options';
+  currentSection: 'Main' | 'Options' | 'RoomSearch';
+  selectedButton: MainMenuIntent;
   version: string;
 }
 
@@ -26,6 +28,26 @@ export type UiState = MainMenuUiState | InGameUiState | LoadingUiState;
 
 type DistributePartial<T> = T extends any ? Partial<T> : never;
 export type PartialUiState = DistributePartial<UiState>;
-export type MainMenuIntent = 'StartGame' | 'GoToOptions';
+export type MainMenuIntent = 'Start' | 'Options' | 'SearchForRooms' | 'BackToMainMenu';
 export type InGameIntent = 'ResumeGame' | 'ExitToMenu';
-export type UserIntent = null | MainMenuIntent | InGameIntent ;
+export interface IntentMap  {
+    // Main Menu Intents
+  'Start': void;
+  'Options': void;
+  'SearchForRooms': void;
+  'BackToMainMenu': void;
+  
+  // In-Game Intents
+  'ResumeGame': void;
+  'ExitToMenu': void;
+}
+
+export type UserIntent = {
+  [K in keyof IntentMap]: IntentMap[K] extends void
+    ? { type: K }
+    : { type: K; payload: IntentMap[K] }
+}[keyof IntentMap];
+
+export type IntentState = UserIntent | null;
+
+export type IntentHandler = (world: World, payload?: any) => void;

@@ -1,4 +1,3 @@
-import { buildCamelCasedResources } from '@/utils';
 import { Time } from '../ecs/resources/Time';
 import { isSome, none, some, type Option } from "./option";
 import { buildResourceMap, type ResourceRegistry } from '@/utils/registry/resource.registry';
@@ -35,7 +34,7 @@ export interface AppState {
      * Logic that will be run once after entering this state. use this
      * to remove unusud systems and entities
      */
-    onExit(world: World,args?: SystemResourcePartial): void;
+    onExit(world: World, args?: SystemResourcePartial): void;
 }
 
 /**
@@ -103,8 +102,11 @@ export class World {
     private entities = new Map<number, Entity>();
     private systems = new Map<Function, System>();
     private resources = new Map<Function, Resource>();
+
     /** A map holding queues for all events sent this frame. */
     private events: Map<Function, EventECS[]> = new Map();
+    /** A map holding queues for all events sent for next frame. */
+    private deferredEvents = new Map<Function, EventECS[]>();
 
     addEntity(entity: Entity): this {
         this.entities.set(entity.id, entity);
@@ -134,7 +136,9 @@ export class World {
         return this;
     }
     update(deltaTime: number): void {
-        this.clearEvents();
+        // Flush event queues
+        this.events = this.deferredEvents;
+        this.deferredEvents = new Map();
         const resources = buildResourceMap(this.resources);
         const time = resources.time as Time | undefined;
         if (time) {
@@ -147,6 +151,7 @@ export class World {
         for (const system of this.systems.values()) {
             system.update(this, resources);
         }
+
     }
     render(alpha: number): void {
         const resources = buildResourceMap(this.resources);
@@ -202,6 +207,15 @@ export class World {
         this.events.get(eventType)!.push(event);
     }
 
+    // Schedule an event for *next frame*
+    deferEvent(event: EventECS) {
+        const type = event.constructor;
+        if (!this.deferredEvents.has(type)) {
+            this.deferredEvents.set(type, []);
+        }
+        this.deferredEvents.get(type)!.push(event);
+    }
+
     /**
      * Reads all events of a specific type that have been
      * sent in the current frame.
@@ -212,15 +226,6 @@ export class World {
         const queue = this.events.get(eventType) as T[];
         return queue || [];
     }
-
-    /**
-     * Clears all event queues.
-     * This is called by the World's update loop.
-     */
-    private clearEvents() {
-        this.events.clear();
-    }
-
 
     /**
      * Queries all entities that have *all* required components.
@@ -272,17 +277,17 @@ export class World {
     }
 
     /**
- * Queries all entities that have *all* required components,
- * but only returns instances of the `componentsToReturn`.
- *
- * @example
- * // Finds entities with Transform AND LocalPlayerTag,
- * // but only returns [transform]
- * world.queryWithFilter(
- * [Transform], // Components to RETURN
- * [LocalPlayerTag] // Components to FILTER BY
- * );
- */
+     * Queries all entities that have *all* required components,
+     * but only returns instances of the `componentsToReturn`.
+     *
+     * @example
+     * // Finds entities with Transform AND LocalPlayerTag,
+     * // but only returns [transform]
+     * world.queryWithFilter(
+     * [Transform], // Components to RETURN
+     * [LocalPlayerTag] // Components to FILTER BY
+     * );
+     */
     queryWithFilter<
         R extends ReadonlyArray<ComponentCtor<Component>>,
         F extends ReadonlyArray<ComponentCtor<Component>>
@@ -315,16 +320,16 @@ export class World {
     }
 
     /**
- * Same as queryWithFilter, but also includes the Entity object.
- *
- * @example
- * // Finds entities with Transform AND LocalPlayerTag,
- * // but only returns [entity, transform]
- * world.queryWithEntityAndFilter(
- * [Transform], // Components to RETURN
- * [LocalPlayerTag] // Components to FILTER BY
- * );
- */
+     * Same as queryWithFilter, but also includes the Entity object.
+     *
+     * @example
+     * // Finds entities with Transform AND LocalPlayerTag,
+     * // but only returns [entity, transform]
+     * world.queryWithEntityAndFilter(
+     * [Transform], // Components to RETURN
+     * [LocalPlayerTag] // Components to FILTER BY
+     * );
+     */
     queryWithEntityAndFilter<
         R extends ReadonlyArray<ComponentCtor<Component>>,
         F extends ReadonlyArray<ComponentCtor<Component>>

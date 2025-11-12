@@ -10,27 +10,7 @@ import { match } from "@/types/utils";
 import { MainMenuState } from "@/ecs/states";
 
 export class InGameInputSystem implements System {
-    update(world: World, { time, appStateResource }: SystemResourcePartial): void {
-        // get the user intent from UI store
-        const { userIntent, sendIntent } = useUiStore.getState();
-
-        // check the intent
-        switch (userIntent) {
-            case 'ResumeGame':
-                this.changeIsPaused(world, { type: 'patch', value: false });
-                sendIntent(null);
-                break;
-            case 'ExitToMenu':
-                if (!appStateResource) return;
-                // immediately exit
-                const mainMenuState = new MainMenuState();
-                appStateResource.scheduleTransition(mainMenuState);
-                sendIntent(null);
-                break;
-            default:
-                break;
-        }
-
+    update(world: World, { time }: SystemResourcePartial): void {
         if (InputManager.isJustPressed(KeyCode.Escape)) {
             this.changeIsPaused(world, { type: 'toggle' })
         }
@@ -86,9 +66,11 @@ export class InGameInputSystem implements System {
                 patch: (arg) => arg.value,
                 _: () => gameStateComponent.isPaused,
             });
+            // update the gameStateIsPaused component
             updateUi({
                 isPaused
             })
+            gameStateComponent.isPaused = isPaused
         }
     }
 }

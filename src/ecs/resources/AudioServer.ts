@@ -1,4 +1,4 @@
-import { isErr, tryCatch, tryCatchAsync } from '@/types';
+import { isErr, tryCatch, tryCatchAsync, type Audio } from '@/types';
 import type { Resource } from '../../types/ecs';
 import { registerResource } from '@/utils/registry/resource.registry';
 
@@ -46,11 +46,21 @@ export class AudioServer implements Resource {
      * Loads an array of audio file URLs and decodes them into AudioBuffers.
      * @param urls A list of asset URLs to preload (e.g., "/assets/jump.wav").
      */
-    public async preload(urls: string[]) {
+    public async preload(config: Audio) {
+        const urls = collectAudioUrlsTyped(config);
         if (this.preloaded) return;
         console.log(`[AudioServer] Preloading ${urls.length} audio assets...`);
-        const promises = urls.map(url => this.load(url));
-        await Promise.all(promises);
+
+        const results = await Promise.allSettled(urls.map(url => this.load(url)));
+
+        const failed = results
+            .map((r, i) => (r.status === "rejected" ? urls[i] : null))
+            .filter(Boolean);
+
+        if (failed.length > 0) {
+            console.warn(`[AudioServer] Some audio files failed to preload:`, failed);
+        }
+
         this.preloaded = true;
         console.log("[AudioServer] Audio preload complete.");
     }
@@ -58,20 +68,20 @@ export class AudioServer implements Resource {
     private async load(url: string): Promise<void> {
         if (this.buffers.has(url) || !this.context) return;
 
-        const res = await tryCatchAsync(async () => {
+        try {
             const response = await fetch(url);
             if (!response.ok) {
-                throw new Error(`Failed to fetch audio: ${url}`);
+                throw new Error(`Failed to fetch audio: ${url} (${response.status})`);
             }
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.context!.decodeAudioData(arrayBuffer);
-            return audioBuffer;
-        });
 
-        if (isErr(res)) {
-            console.error(res.error);
-        } else {
-            this.buffers.set(url, res.value);
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+                this.context!.decodeAudioData(arrayBuffer, resolve, reject);
+            });
+
+            this.buffers.set(url, audioBuffer);
+        } catch (err) {
+            console.warn(`[AudioServer] Could not load or decode ${url}:`, err);
         }
     }
 
@@ -141,11 +151,81 @@ export class AudioServer implements Resource {
             this.bgmGain.gain.setValueAtTime(volume, this.context.currentTime);
         }
     }
+
+    /**
+     * Clears all loaded audio resources and stops all sounds.
+     * Should be called when exiting an AppState (e.g., scene unload).
+     */
+    public async clear() {
+        console.log("[AudioServer] Clearing all audio resources...");
+
+        // Stop any playing sources
+        this.stopBgm();
+
+        // Disconnect gain nodes
+        if (this.sfxGain) {
+            this.sfxGain.disconnect();
+            this.sfxGain = null;
+        }
+        if (this.bgmGain) {
+            this.bgmGain.disconnect();
+            this.bgmGain = null;
+        }
+
+        // Clear all buffers
+        this.buffers.clear();
+        this.preloaded = false;
+
+        // Close audio context (frees system resources)
+        if (this.context) {
+            try {
+                await this.context.close();
+            } catch (err) {
+                console.warn("[AudioServer] Error closing AudioContext:", err);
+            }
+            this.context = null;
+        }
+
+        console.log("[AudioServer] Audio resources cleared.");
+    }
+
+    /**
+     * Soft clear:
+     * Stops all currently playing audio but keeps preloaded buffers
+     * and does NOT close the AudioContext.
+     */
+    public softClear() {
+        console.log("[AudioServer] Performing soft clear...");
+
+        // Stop currently playing audio
+        this.stopBgm();
+
+        // Disconnect any SFX still playing (if any exist)
+        // We can't track SFX sources easily here unless we store them,
+        // but we can temporarily mute all SFX channels.
+        if (this.sfxGain && this.context) {
+            this.sfxGain.gain.setValueAtTime(0, this.context.currentTime);
+            setTimeout(() => {
+                // Restore normal gain a moment later for future playback
+                if (this.sfxGain && this.context) {
+                    this.sfxGain.gain.setValueAtTime(1, this.context.currentTime);
+                }
+            }, 100);
+        }
+
+        console.log("[AudioServer] All active audio stopped (buffers preserved).");
+    }
+}
+
+function collectAudioUrlsTyped<T extends Record<string, any>>(obj: T): string[] {
+  return Object.values(obj).flatMap(v =>
+    typeof v === "string" ? [v] : collectAudioUrlsTyped(v)
+  );
 }
 
 registerResource("audioServer", AudioServer);
 declare module "@/utils/registry/resource.registry" {
-  interface ResourceRegistry {
-    audioServer: AudioServer;
-  }
+    interface ResourceRegistry {
+        audioServer: AudioServer;
+    }
 }

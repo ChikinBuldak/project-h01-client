@@ -1,12 +1,12 @@
-import * as z from "zod";
 import configJson from '@/assets/game.config.json';
+import * as z from "zod";
 
 
-export const AssetsSchema = z.object({
-  "images": z.array(z.string()),
-  "audio": z.array(z.string()),
+export const SfxSchema = z.object({
+  "jump": z.string(),
+  "dodge": z.string(),
 });
-export type Assets = z.infer<typeof AssetsSchema>;
+export type Sfx = z.infer<typeof SfxSchema>;
 
 export const BasicAttack1Schema = z.object({
   "row": z.number(),
@@ -36,6 +36,12 @@ export const RemotePlayerSchema = z.object({
 });
 export type RemotePlayer = z.infer<typeof RemotePlayerSchema>;
 
+export const AudioSchema = z.object({
+  "sfx": SfxSchema,
+  "bgm": z.string(),
+});
+export type Audio = z.infer<typeof AudioSchema>;
+
 export const AnimationsSchema = z.object({
   "idle": BasicAttack1Schema,
   "basic_attack_1": BasicAttack1Schema,
@@ -51,6 +57,12 @@ export const SceneSchema = z.object({
   "pit": PitSchema,
 });
 export type Scene = z.infer<typeof SceneSchema>;
+
+export const AssetsSchema = z.object({
+  "images": z.array(z.string()),
+  "audio": AudioSchema,
+});
+export type Assets = z.infer<typeof AssetsSchema>;
 
 export const ModelSchema = z.object({
   "name": z.string(),

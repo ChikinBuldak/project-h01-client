@@ -3,11 +3,13 @@
     "images": [
       "/assets/player-spritesheet.png"
     ],
-    "audio": [
-      "/assets/sfx/jump.wav",
-      "/assets/sfx/dodge.wav",
-      "/assets/bgm/bgm.mp3"
-    ]
+    "audio": {
+      "sfx": {
+        "jump":"/assets/sfx/jump.wav",
+        "dodge": "/assets/sfx/dodge.wav"
+      },
+      "bgm": "/assets/bgm/bgm.mp3"
+    }
   },
   "player": {
     "width": 64,

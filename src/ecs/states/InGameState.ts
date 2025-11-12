@@ -5,11 +5,13 @@ import { ConfigResource } from '../resources/ConfigResource';
 import type { InGameUiState } from '@/stores/ui.types';
 import { useUiStore } from '@/stores/ui.store';
 import { setupInGameEntities, setupInGameSystems } from '../startup';
-import { CombatResource, DomResource, NetworkResource, PhysicsResource } from '../resources';
-import { GarbageCollectorSystem, InGameInputSystem, PlayerMovementSystem, DomRenderSystem, PhysicsSystem, AnimationSystem, CombatSystem, DebugRenderSystem, NetworkReceiveSystem, ReconciliationSystem } from '../systems';
+import { AudioServer, CombatResource, DomResource, NetworkResource, PhysicsResource } from '../resources';
+import { InGameInputSystem, PlayerMovementSystem, PhysicsSystem, AnimationSystem, CombatSystem, DebugRenderSystem, NetworkReceiveSystem, ReconciliationSystem } from '../systems';
 import { PlayerLifecycleSystem } from '../systems/core';
 import { InterpolationSystem } from '../systems/network/InterpolationSystem';
 import { Despawn } from '../components';
+import AudioRequestEvent from '../events/AudioRequestEvent';
+
 export class InGameState implements AppState {
     private entityInterval: Undefinable<IInterval>;
 
@@ -38,6 +40,12 @@ export class InGameState implements AppState {
         this.entityInterval = setupInGameEntities(
             addEntity, configRes.effectiveOnline, configRes.config
         );
+
+        // send event for playing the bgm
+        world.deferEvent(
+            new AudioRequestEvent(configRes.config.assets.audio.bgm, { type: 'bgm', loop: true })
+        );
+        console.log("send event to play BGM");
     }
     onExit(world: World): void {
         if (this.entityInterval) {
@@ -57,7 +65,12 @@ export class InGameState implements AppState {
      * @param world 
      */
     private cleanup(world: World) {
-        // world.clearEntities();
+
+        // clear audio played
+        const audioServerOpt = world.getResource(AudioServer);
+        if (audioServerOpt.some) {
+            audioServerOpt.value.softClear();
+        }
         for (const entity of world.getEntities()) {
             entity.addComponent(new Despawn());
         }

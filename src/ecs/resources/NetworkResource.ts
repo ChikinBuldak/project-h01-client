@@ -268,13 +268,13 @@ export class NetworkResource implements Resource {
         }
     }
 
-        /**
+    /**
      * Sends a message to the server.
      * @param message The ClientMessage to send.
      */
     public sendMessage(message: ClientMessage) {
         if (isNone(this._dataChannel) || !this.isConnected) {
-            console.warn("[NetworkResource] Cannot send message, data channel not connected.");
+            // console.warn("[NetworkResource] Cannot send message, data channel not connected.");
             return;
         }
 

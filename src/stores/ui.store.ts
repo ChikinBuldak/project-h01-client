@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { LoadingUiState, PartialUiState, UiState, UserIntent } from './ui.types';
+import type { IntentState, LoadingUiState, PartialUiState, UiState, UserIntent } from './ui.types';
 
 interface UiStore {
     /**The single source of truth for UI state */
@@ -16,9 +16,10 @@ interface UiStore {
    */
     updateCurrentState: (data: PartialUiState) => void;
     /** A state to hold UI button click intents */
-    userIntent: UserIntent;
+    userIntent: IntentState;
     /** An action for React components to call */
     sendIntent: (intent: UserIntent) => void;
+    resetIntent: () => void;
 
 }
 
@@ -40,4 +41,5 @@ export const useUiStore = create<UiStore>((set) => ({
         }),
     userIntent: null,
     sendIntent: (intent) => set({ userIntent: intent }),
+    resetIntent: () => set({ userIntent: null }),
 }))

@@ -38,11 +38,11 @@ const InGameUI: React.FC<{ state: InGameUiState }> = ({ state }) => {
     const sendIntent = useUiStore((store) => store.sendIntent);
 
     function handleResume() {
-        sendIntent('ResumeGame');
+        sendIntent({type: 'ResumeGame'});
     }
 
     function handleExit() {
-        sendIntent('ExitToMenu');
+        sendIntent({type: 'ExitToMenu'});
     }
 
     if (!state.isPaused) return null;
