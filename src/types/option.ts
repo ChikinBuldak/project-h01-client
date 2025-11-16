@@ -4,19 +4,39 @@ export type Option<T> = Some<T> | None;
 export type Some<T> = {
   readonly some: true;
   readonly value: T;
+  isSome(): this is Some<T>;
+  isNone(): this is None;
+
+  unwrap(): T;
 };
 
 export type None = {
   readonly some: false;
+
+  isSome(): this is Some<never>;
+  isNone(): this is None;
+
+  unwrap(): never;
 };
 
 // Constructors
 export const some = <T>(value: T): Option<T> => ({
   some: true,
   value,
+  isSome():  this is Some<T> { return true; },
+  isNone():  this is None { return false; },
+  unwrap() { return value; },
 });
 
-export const none: None = { some: false };
+// export const none: None = { some: false };
+export const none: None = {
+    some: false,
+    isSome():  this is Some<never>{ return false; },
+    isNone(): this is None { return true; },
+    unwrap() {
+      throw new Error("Called unwrap() on None");
+    },
+}
 
 // Type guards
 export const isSome = <T>(opt: Option<T>): opt is Some<T> =>

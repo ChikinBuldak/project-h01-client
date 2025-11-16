@@ -1,12 +1,22 @@
 import { AppStateResource, NetworkResource } from "@/ecs/resources";
 import { InGameScene, LoadingScene } from "@/ecs/scenes";
 import type { UiIntentSystem } from "@/ecs/systems/render/ui/UiIntentSystem";
-import { useUiStore, useWorldStore, type MainMenuUiState } from "@/stores";
-import { useWaitingRoomStore } from "@/stores/waiting-room.store";
+import { useUiStore, type MainMenuUiState } from "@/stores";
 import { isSome, unwrapOpt, type World } from "@/types";
-import type { WsAuthRequest } from '../../types/room-manager.types';
+import type { AuthType, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse } from '../../types/room-manager.types';
 import { LobbyStateComponent } from "@/ecs/components/network/lobby-room.component";
-import { JoinRoomEvent, LeaveRoomEvent } from "@/ecs/events/LobbyEvent";
+import { LeaveRoomEvent } from "@/ecs/events/LobbyEvent";
+import { createNewRoom, RoomManagerAPIHandler } from "@/api/room-manager.api";
+import { LobbyRestApiResponseSystem } from "@/ecs/systems/network/lobby-connection.system";
+import { err, ok } from '../../types/result';
+
+// ============ INTERNAL TYPES =========================
+export type HandleJoinRoomPayloadType = {
+    name: string, capacity: number
+}
+
+
+// ====================== HANDLER FUNCTIONS =============================
 
 function handleStartGame(world: World): void {
     const appStateOpt = world.getResource(AppStateResource);
@@ -33,7 +43,7 @@ function handleStartGame(world: World): void {
     }
 }
 
-function handleSearchForRooms(world: World): void {
+function handleSearchForRooms(_world: World): void {
     console.log("UI intent 'SearchForRooms' received.");
     // This logic updates the UI state, not the ECS state.
     const { state, transitionTo } = useUiStore.getState();
@@ -51,7 +61,7 @@ function handleSearchForRooms(world: World): void {
     }
 }
 
-function handleBackToMainMenu(world: World): void {
+function handleBackToMainMenu(_world: World): void {
     console.log("UI intent 'BackToMainMenu' received.");
     const { state, transitionTo } = useUiStore.getState();
 
@@ -65,8 +75,34 @@ function handleBackToMainMenu(world: World): void {
     }
 }
 
-function handleJoinRoom(world: World, payload: { roomId: string }): void {
-    const {state, transitionTo } = useUiStore.getState();
+function handleCreateRoom(world: World, payload: HandleJoinRoomPayloadType) {
+    const networkRes = world.getResource(NetworkResource);
+    if (networkRes.isNone()) {
+        console.error("NetworkResource not found! Cannot join room.");
+        return;
+    }
+    const lobbyStateRes = world.querySingle(LobbyStateComponent);
+    if (lobbyStateRes.isNone()) {
+        console.error("LobbyStateComponent not found! Cannot create room.");
+        return;
+    }
+
+    const {name, capacity} = payload;
+
+    const authType = networkRes.unwrap().lobbyAuth
+
+    const createRoomRequestBody = createNewRoom(authType, name, capacity);
+
+    NetworkResource.sendHTTPRequest<LobbyRestApiResponseSystem, CreateRoomResponse>(world, async () => {
+        const result = await RoomManagerAPIHandler.createRoom(createRoomRequestBody);
+        return result.isOk() ? ok(result.unwrap()) : err(result.unwrap());
+    }, LobbyRestApiResponseSystem)
+    .then(() => console.log("Create room request is successful"))
+    .catch((e) => console.error("Error when creating room:", e))
+
+}
+
+function handleJoinRoom(world: World, payload: JoinRoomRequest): void {
     const networkRes = world.getResource(NetworkResource);
     if (!networkRes.some) {
         console.error("NetworkResource not found! Cannot join room.");
@@ -78,35 +114,24 @@ function handleJoinRoom(world: World, payload: { roomId: string }): void {
         console.error("LobbyStateComponent not found! Cannot join room.");
         return;
     }
-    const network = networkRes.value;
-    const [lobbyState] = lobbyStateRes.value;
-    lobbyState.pendingJoinRoomId = payload.roomId;
-    console.log(`[handleJoinRoom] Set pendingJoinRoomId to ${payload.roomId}`)
-    if (lobbyState.status === "disconnected") {
-        console.log("Not connected to lobby, initiating connection...");
-        network.connectToWaitingRoom();
-    }
-
-    // 3. Transition the UI to the waiting room immediately
-    transitionTo({
-        ...state,
-        type: 'WaitingRoom',
-        roomId: payload.roomId
-    });
+    
+    NetworkResource.sendHTTPRequest<LobbyRestApiResponseSystem, JoinRoomResponse>(world, async () => {
+        const result = await RoomManagerAPIHandler.joinRoom(payload);
+        return result.isOk() ? ok(result.unwrap()) : err(result.unwrap());
+    }, LobbyRestApiResponseSystem).then(()=>console.log("Join room request is successful")).catch((e)=> console.error("Error when joining room:", e))
 }
 
 function handleLeaveRoom(world: World): void {
-    // 1. Send the event.
     // The LobbyConnectionSystem will find this, send the network message,
     // and the server will close the connection.
     world.sendEvent(new LeaveRoomEvent());
 
-    // 2. Transition the UI back to the main menu
+    // Transition the UI back to the main menu
     useUiStore.getState().transitionTo({
         type: 'MainMenu',
         currentSection: 'Main',
         selectedButton: 'SearchForRooms',
-        version: '1.0.0', // Assuming version is needed
+        version: '1.0.0',
     });
 };
 
@@ -119,6 +144,7 @@ export function registerMainMenuIntents(system: UiIntentSystem): void {
     system.register('SearchForRooms', handleSearchForRooms);
     system.register('BackToMainMenu', handleBackToMainMenu);
     system.register('JoinRoom', handleJoinRoom);
+    system.register('CreateRoom', handleCreateRoom);
     system.register('LeaveRoom', handleLeaveRoom);
     // Register 'Options' here when you have it
     // system.register('Options', handleOptions);

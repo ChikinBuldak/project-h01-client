@@ -25,26 +25,9 @@ export const RoomIdSchema = z.object({
 export type RoomInfo = z.infer<typeof RoomInfoSchema>;
 export type RoomId = z.infer<typeof RoomIdSchema>;
 
-// Parser for room creation requests (if needed)
-export const CreateRoomRequestSchema = z.object({
-    user_id: z.string(),
-    room_id: RoomIdSchema,
-    name: z.string(),
-    created_at: z.coerce.date(),
-    max_capacity: z.number().min(1).max(100),
-});
-
-
-export type CreateRoomRequest = z.infer<typeof CreateRoomRequestSchema>;
 
 // ===== Client -> Room Manager API Types =====
 
-export const CreateRoomWSPayloadSchema = z.object({
-    type: z.literal('create_room'),
-    payload: CreateRoomRequestSchema,
-})
-
-export type CreateRoomWSPayload = z.infer<typeof CreateRoomWSPayloadSchema>;
 
 const JoinRoomSchema = z.object({
     room_id: z.string(),
@@ -67,8 +50,6 @@ export const PingPayloadSchema = z.object({
 });
 
 export const RoomManagerPayloadSchema = z.discriminatedUnion('type', [
-    CreateRoomWSPayloadSchema,
-    JoinRoomPayloadSchema,
     LeaveRoomPayloadSchema,
     PingPayloadSchema,
 ]);
@@ -123,6 +104,24 @@ export type WsAuthRequest =
         user_id: string
     };
 
+export const DiscordAuthSchema = z.object({
+    type: z.literal('Discord'),
+    user_id: z.string(),
+    guild_id: z.string(),
+    channel_id: z.string()
+})
+
+export const GeneralAuthSchema = z.object({
+    type: z.literal('General'),
+    user_id: z.string()
+})
+export const AuthSchema  = z.discriminatedUnion('type', [
+    DiscordAuthSchema,
+    GeneralAuthSchema
+]);
+
+export type AuthType = z.infer<typeof AuthSchema>;
+
 export interface WsCreateRoomRequest {
     user_id: string;
     room_id: string;
@@ -160,16 +159,9 @@ export type ServerMessage = z.infer<typeof ServerMessageSchema>;
 // Based on ClientMessage from types.rs
 export const LobbyClientMessageSchema = z.union([
     z.object({
-        type: z.literal('create_room'),
-        user_id: z.string(),
-        room_id: z.string(),
-        name: z.string(),
-        created_at: z.string(), // ISO string
-        max_capacity: z.number(),
-    }),
-    z.object({
-        type: z.literal('join_room'),
-        room_id: z.string(),
+        type: z.literal('connect'),
+        auth: AuthSchema,
+        room_id: z.string()
     }),
     z.object({
         type: z.literal('leave_room'),
@@ -181,3 +173,44 @@ export const LobbyClientMessageSchema = z.union([
 ]);
 export type LobbyClientMessage = z.infer<typeof LobbyClientMessageSchema>;
 
+// ==================================================
+// ============== REST API RESPONSE =================
+// ==================================================
+
+export const CreateRoomRequestSchema = z.object({
+    type: z.literal('create_room'),
+    name: z.string(),
+    max_capacity: z.number().min(1).max(100),
+    auth: AuthSchema
+});
+export type CreateRoomRequest = z.infer<typeof CreateRoomRequestSchema>;
+
+export const CreateRoomResponseSchema = z.object({
+    type: z.literal('create_room'),
+    owner_id: z.string(),
+    room_id: z.string(),
+    name: z.string(),
+    created_at: z.coerce.date(),
+    max_capacity: z.number(),
+});
+
+export type CreateRoomResponse = z.infer<typeof CreateRoomResponseSchema>;
+
+export const JoinRoomResponseSchema = z.object({
+    type: z.literal('join_room'),
+    room_id: z.string(),
+    owner_id: z.string(),
+    name: z.string(),
+    created_at: z.coerce.date(),
+    max_capacity: z.number(),
+    members: z.array(z.string())
+});
+
+export type JoinRoomResponse = z.infer<typeof JoinRoomResponseSchema>;
+
+export const JoinRoomRequestSchema = z.object({
+    user_id: z.string(),
+    room_id: z.string()
+})
+
+export type JoinRoomRequest = z.infer<typeof JoinRoomRequestSchema>

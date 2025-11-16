@@ -34,7 +34,7 @@ export async function setupDiscordSDK(
       // You might want to return null here or handle differently
     }
     const readyRes = await tryCatchAsync(async () => discordSdk.ready());
-    if (isErr(readyRes)) {
+    if (readyRes.isErr()) {
       console.error("Error when calling ready():", readyRes.error);
       return null;
     }

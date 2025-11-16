@@ -2,8 +2,7 @@ import { AppStateResource } from "@/ecs/resources/state.resource";
 import { useWorldStore } from "../stores/world.store";
 import { useEffect, useRef } from "react";
 import { isSome, unwrapOpt } from "@/types";
-import { ConfigResource } from "@/ecs/resources";
-import AudioRequestEvent from "@/ecs/events/AudioRequestEvent";
+import { Time } from "@/ecs/resources";
 
 let SimulationHz = 60;
 export const FIXED_TIMESTEP = 1000 / SimulationHz;
@@ -14,7 +13,6 @@ export const useGameLoop = () => {
     const lastTimeRef = useRef(performance.now());
     const accumulatorRef = useRef(0);
     const rafRef = useRef(0);
-    const firstFrameRef = useRef(true);
 
     useEffect(() => {
         const tick = (currentTime: number) => {
@@ -29,6 +27,10 @@ export const useGameLoop = () => {
             }
 
             while (accumulatorRef.current >= FIXED_TIMESTEP) {
+                const time = world.getResource(Time);
+                if (isSome(time)) {
+                    unwrapOpt(time).currentTick++;
+                }
                 world.update(FIXED_TIMESTEP);
                 accumulatorRef.current -= FIXED_TIMESTEP;
             }

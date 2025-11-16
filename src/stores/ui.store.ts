@@ -4,6 +4,8 @@ import type { IntentState, LoadingUiState, PartialUiState, UiState, UserIntent }
 interface UiStore {
     /**The single source of truth for UI state */
     state: UiState
+    /** Error data for pop up dialog */
+    error: {code: number, message: string} | null;
     /**
    * Replaces the entire state. Used by AppState (onEnter) 
    * to set the initial state for MainMenu, InGame, etc.
@@ -20,6 +22,7 @@ interface UiStore {
     /** An action for React components to call */
     sendIntent: (intent: UserIntent) => void;
     resetIntent: () => void;
+    setError: (error: {code: number, message: string} | null) => void;
 
 }
 
@@ -29,6 +32,7 @@ export const useUiStore = create<UiStore>((set) => ({
         progress: 0,
         message: 'Initializing',
     } as LoadingUiState,
+    error: null,
     transitionTo: (newState) => set({ state: newState }),
     updateCurrentState: (data) =>
         set((store) => {
@@ -42,4 +46,5 @@ export const useUiStore = create<UiStore>((set) => ({
     userIntent: null,
     sendIntent: (intent) => set({ userIntent: intent }),
     resetIntent: () => set({ userIntent: null }),
+    setError: (error) => set({error})
 }))

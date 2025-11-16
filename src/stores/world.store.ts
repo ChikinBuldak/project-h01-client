@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { type Entity, World, type System, type Resource } from "../types/ecs";
 import { unwrapOpt } from '../types/option';
 import type { NetworkDiscordJoinData } from "@/ecs/resources";
+import type { AuthType } from "@/types/room-manager.types";
 
 /**
  * The state slice of the Zustand store containing the world instance
@@ -9,8 +10,7 @@ import type { NetworkDiscordJoinData } from "@/ecs/resources";
 interface WorldState {
   /** The single instance of the ECS World */
   world: World;
-  discord: NetworkDiscordJoinData | null;
-  generalUserId?: string
+  auth: AuthType | null;
 }
 
 /**
@@ -31,7 +31,7 @@ export interface WorldActions {
   update: (deltaTime: number) => void;
   /** Executes the *render* step for all systems in the world. */
   render: (alpha: number) => void;
-  setDiscordJoinData: (data: NetworkDiscordJoinData | null) => void;
+  setAuth: (data: AuthType) => void;
 }
 
 /**
@@ -44,7 +44,7 @@ const initialWorld = new World();
 const initialDiscordData: NetworkDiscordJoinData | null = null;
 
 export function generateRandomUserId(): string {
-  return 'user-' + Math.random().toString(36).substring(2, 9);
+  return 'general-' + Math.random().toString(36).substring(2, 9);
 }
 
 const initialRandomUserId = generateRandomUserId();
@@ -53,8 +53,7 @@ const initialRandomUserId = generateRandomUserId();
  */
 export const useWorldStore = create<WorldStore>()((set, get) => ({
   world: initialWorld,
-  discord: initialDiscordData,
-  generalUserId: initialRandomUserId,
+  auth: null,
 
   initializeWorld: () => {
     set({
@@ -97,7 +96,9 @@ export const useWorldStore = create<WorldStore>()((set, get) => ({
       world.render(alpha);
     }
   },
-  setDiscordJoinData: (data) => {
-    set({ discord: data });
+
+  setAuth: (data) => {
+    set({ auth: data });
+
   }
 }));

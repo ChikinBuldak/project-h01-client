@@ -96,7 +96,7 @@ export interface System {
     render?(world: World, resources: SystemResourcePartial): void;
 }
 
-type SystemCtor<T extends System> = new (...args: any[]) => T;
+export type SystemCtor<T extends System> = new (...args: any[]) => T;
 
 export class World {
     private entities = new Map<number, Entity>();
@@ -153,7 +153,6 @@ export class World {
         if (time) {
             time.fixedDeltaTime = deltaTime;
             time.elapsedTime += deltaTime;
-            time.currentTick = time.currentTick + 1;
         }
 
         // Run all systems
@@ -250,8 +249,8 @@ export class World {
 
             const components = componentTypes.map((ctor) => {
                 const compOpt = entity.getComponent(ctor);
-                return isSome(compOpt)
-                    ? compOpt.value
+                return compOpt.isSome()
+                    ? compOpt.unwrap()
                     : (() => {
                         throw new Error(`Missing component ${ctor.name} after check`);
                     })();
@@ -317,8 +316,8 @@ export class World {
             if (!allTypes.every((ctor) => entity.hasComponent(ctor))) continue;
             const components = componentsToReturn.map((ctor) => {
                 const compOpt = entity.getComponent(ctor);
-                return isSome(compOpt)
-                    ? compOpt.value
+                return compOpt.isSome()
+                    ? compOpt.unwrap()
                     : (() => {
                         throw new Error(`Missing component ${ctor.name} after check`);
                     })();

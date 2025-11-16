@@ -20,7 +20,8 @@ import { InGameInputSystem } from './systems/core/input/InGameInputSystem';
 import { InGameStateComponent } from './components/scenes/InGameStateComponent';
 import { UiIntentSystem } from './systems/render/ui/UiIntentSystem';
 import { LobbyUiSystem } from './systems/render/ui/LobbyUiSystem';
-import { LobbyConnectionSystem, LobbyMessageSystem } from './systems/network/LobbyConnectionSystem';
+import { LobbyConnectionSystem, LobbyMessageSystem, LobbyRestApiResponseSystem } from './systems/network/lobby-connection.system';
+import { GlobalUiSystem } from './systems/render/ui/GlobalUiSystem';
 
 export function setupCoreSystems(
     addSystem: (sys: System) => void
@@ -33,6 +34,8 @@ export function setupCoreSystems(
     addSystem(new LobbyUiSystem());
     addSystem(new LobbyMessageSystem());
     addSystem(new LobbyConnectionSystem());
+    addSystem(new GlobalUiSystem());
+    addSystem(new LobbyRestApiResponseSystem());
 }
 /**
  * Adds all necessary resources to the world.

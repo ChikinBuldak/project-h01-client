@@ -1,12 +1,15 @@
-import type { Resource } from "../../types/ecs";
+import type { Resource, System, SystemCtor, World } from "../../types/ecs";
 import { parseServerMessage, SignalMessage, type ClientMessage, type PlayerInput, type ServerMessage } from "../../types/network";
 import { isNone, isSome, none, some, unwrapOpt } from '../../types/option';
-import { isErr, isOk, tryCatch } from "../../types/result";
+import { err, isErr, isOk, ok, tryCatch, type Ok, type Result } from "../../types/result";
 import type { Option } from "../../types/option";
 import { registerResource } from "@/utils/registry/resource.registry";
 import type { WaitingRoomUiState } from "@/stores";
 import type { LobbyClientMessage, RoomResponsePayload } from "@/types/room-manager.types";
 import { ServerMessageSchema as LobbyServerMessageSchema, type ServerMessage as LobbyServerMessage, type WsAuthRequest } from '../../types/room-manager.types';
+import type { HTTPResponseError, YourAverageHTTPResponse } from "@/types/http";
+import { RestAPIResponseEvent } from "../events/RestAPIResponseEvent";
+import { GameErrorEvent } from "../events/ErrorEvent";
 
 /**
  * Default RTC configuration. Uses Google's public STUN servers.
@@ -56,6 +59,10 @@ export class NetworkResource implements Resource {
     private _waitingRoomSocket: Option<WebSocket> = none;
     private _waitingRoomUrl: string;
     private _lobbyAuth: WsAuthRequest;
+
+    get lobbyAuth(): WsAuthRequest {
+        return this._lobbyAuth;
+    }
 
     constructor(signalingUrl: string,
         waitingRoomUrl: string,
@@ -385,10 +392,9 @@ export class NetworkResource implements Resource {
     }
 
     private handleWaitingRoomOpen = () => {
-        console.log("[NetworkResource] Waiting Room socket connected. Authenticating...");
+        console.log("[NetworkResource] Waiting Room socket connected.");
         this.isLobbyConnecting = false;
         this.isLobbyConnected = true;
-        this.sendWaitingRoomMessage(this._lobbyAuth);
     };
 
     private handleWaitingRoomMessage = (event: MessageEvent) => {
@@ -448,13 +454,36 @@ export class NetworkResource implements Resource {
     }
 
     public disconnectFromWaitingRoom() {
-        if (isSome(this._waitingRoomSocket)) {
-            this._waitingRoomSocket.value.close();
+        if (this._waitingRoomSocket.isSome()) {
+            this._waitingRoomSocket.unwrap().close();
         }
         this._waitingRoomSocket = none;
         this.isLobbyConnected = false;
         this.isLobbyConnecting = false;
         console.log("[NetworkResource] Waiting Room connection closed.");
+    }
+
+    // ===================================================
+    // =============== UTILS METHOD ======================
+    // ===================================================
+
+    /**
+     * Send HTTP request from handler and send RestAPIResponseEvent to the world or GameErrorEvent if it is error
+     * @param world 
+     * @param handler 
+     * @param forWhom To label what instances this message is intended for
+     * @returns 
+     */
+    static async sendHTTPRequest<TargetSystem extends System, PayloadType>(world: World, handler: () => Promise<Result<YourAverageHTTPResponse<PayloadType>, HTTPResponseError>>, forWhom?: SystemCtor<TargetSystem> ) {
+        let result = await handler();
+        if (result.isErr()) {
+            const {statusCode, message} = result.unwrap()
+            world.sendEvent(new GameErrorEvent(statusCode, message));
+            return;
+        }
+
+        // If ok, send event message
+        world.deferEvent(new RestAPIResponseEvent(result.unwrap(), forWhom));
     }
 
 }

@@ -3,16 +3,15 @@
 import { useUiStore } from "@/stores";
 import type { MainMenuUiState } from "@/stores/ui.types";
 import RoomListUI from "./RoomListUI";
-import WaitingRoomUI from "./WaitingRoomUI";
 
 const MainMenuUI: React.FC<{ state: MainMenuUiState }> = ({ state }) => {
     const sendIntent = useUiStore((s) => s.sendIntent);
     const onStartClick = () => {
-        sendIntent({type: 'Start'});
+        sendIntent({ type: 'Start' });
     };
 
     const onSearchForRoomsClick = () => {
-        sendIntent({type: 'SearchForRooms'});
+        sendIntent({ type: 'SearchForRooms' });
     }
     switch (state.currentSection) {
         case 'Main':
@@ -49,7 +48,9 @@ const MainMenuUI: React.FC<{ state: MainMenuUiState }> = ({ state }) => {
                 </div>
             )
         case 'RoomSearch':
-            return <RoomListUI/>;
+            return (
+                <RoomListUI />
+            );
     }
 
 }

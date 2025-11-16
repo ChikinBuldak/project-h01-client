@@ -12,6 +12,7 @@ import ErrorScene from './ecs/scenes/ErrorScene'
 
 import { initialAppLoadTask, MainMenuScene } from './ecs/scenes'
 import GameUIManager from './ui-components/game/GameUIManager'
+import { ErrorDialog } from './ui-components/ErrorDialog'
 
 const queryParams = new URLSearchParams(window.location.search);
 const frameId = queryParams.get('frame_id');
@@ -84,7 +85,7 @@ function TestPage() {
 
 function App() {
 	useGameLoop();
-	const { initializeWorld, addResource, setDiscordJoinData } = useWorldStore.getState();
+	const { initializeWorld, addResource, setAuth: setUserIdAuth } = useWorldStore.getState();
 	const initRef = useRef(false);
 	const [auth, setAuth] = useState<{ user: { username: string } } | null>(null);
 	const backEndUrl = import.meta.env.VITE_BACKEND_URL;
@@ -127,7 +128,7 @@ function App() {
                     setAuth(authResult.auth);
                     joinData = authResult.joinData;
                     addResource(new NetworkResource(backEndUrl, waitingRoomUrl, joinData));
-					setDiscordJoinData(joinData);
+					setUserIdAuth({type: 'Discord', guild_id: joinData.guildId, channel_id: joinData.channelId, user_id: joinData.userId});
                     effectiveOnline = true;
                 } else {
                     console.warn('Discord SDK setup failed. Running in SEMI-OFFLINE mode.');
@@ -135,6 +136,7 @@ function App() {
                         userId: generateRandomUserId(),
                     };
                     addResource(new NetworkResource(backEndUrl, waitingRoomUrl, thisJoinData));
+					setUserIdAuth({type: 'General', user_id: thisJoinData.userId});
                     setAuth({ user: { username: 'Offline' } });
                     effectiveOnline = false;
                 }
@@ -166,6 +168,8 @@ function App() {
                 userId: generateRandomUserId()
             };
             addResource(new NetworkResource(backEndUrl, waitingRoomUrl,  joinData));
+			setUserIdAuth({type: 'General', user_id: joinData.userId});
+			
             setAuth({ user: { username: 'Offline' } });
             effectiveOnline = false;
             
@@ -193,6 +197,7 @@ function App() {
 			<div id="world-container">
 				<div id="world"></div>
 			</div>
+			<ErrorDialog/>
 		</>
 	)
 }

@@ -139,10 +139,6 @@ export class PlayerMovementSystem implements System {
             if (state.getDodgeTimer <= 0) {
                 state.isInvisible = false;
                 state.isBusy = false;
-                // if (combatState.timeSinceLastAttack >= combatState.attackDelay) {
-                //     state.isBusy = false;
-                //     state.isInvisible = false;
-                // }
             }
         }
     }
