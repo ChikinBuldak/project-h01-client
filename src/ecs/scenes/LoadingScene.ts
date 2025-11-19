@@ -7,8 +7,39 @@ import { ConfigResource } from "../resources/ConfigResource";
 import { setupCoreSystems, setupResources } from "../startup";
 import { AppStateResource } from "../resources/state.resource";
 import ErrorScene from "./ErrorScene";
-// This is the new, generic signature for any async loading work
-type LoadingTask = (world: World) => Promise<void>;
+import { InGameScene } from "./InGameScene";
+
+// This is the generic signature for any async loading work
+export type LoadingTask = (world: World) => Promise<void>;
+
+// ======================= HELPERS ===========================
+export function handleStartGameUniversal(world: World, callback?: LoadingTask) {
+    const appStateOpt = world.getResource(AppStateResource);
+    if (appStateOpt.isNone()) {
+        console.error("AppStateResource not found! Cannot change state.");
+        return;
+    }
+
+    console.log("UI intent 'Start' received, transitioning to LoadingState.");
+    let loadInGameTask: LoadingTask;
+    if (!callback) {
+        loadInGameTask = async (_: World) => {
+            console.log("Running In-Game loading task...");
+            await new Promise(res => setTimeout(res, 500)); // 0.5s fake load
+            console.log("In-Game loading task complete.");
+        };
+    } else {
+        loadInGameTask = callback;
+    }
+
+    const loadingState = new LoadingScene(
+        new InGameScene(),  // The state to go to *after*
+        loadInGameTask,     // The async task to run
+        'Loading Game...'   // The message to show
+    );
+
+    appStateOpt.unwrap().scheduleTransition(loadingState);
+}
 
 export class LoadingScene implements AppScene {
     private nextState: AppScene;

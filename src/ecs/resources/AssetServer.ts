@@ -1,6 +1,7 @@
 import { isErr, tryCatchAsync, type Resource } from "@/types";
-import { registerResource } from "@/utils/registry/resource.registry";
+import { resource } from "@/utils/decorators/resource.decorator";
 
+@resource("assetServer")
 export class AssetServer implements Resource {
     private assets = new Map<string, HTMLImageElement>();
     private preloaded = false;
@@ -52,7 +53,6 @@ export class AssetServer implements Resource {
     }
 }
 
-registerResource("assetServer", AssetServer);
 declare module "@/utils/registry/resource.registry" {
   interface ResourceRegistry {
     assetServer: AssetServer;

@@ -1,11 +1,15 @@
 import { LobbyRoomComponent, LobbyStateComponent, PlayerInLobbyComponent } from "@/ecs/components/network/lobby-room.component";
 import { GameErrorEvent } from "@/ecs/events/ErrorEvent";
-import { JoinRoomEvent, LeaveRoomEvent } from "@/ecs/events/LobbyEvent";
 import { RestAPIResponseEvent } from "@/ecs/events/RestAPIResponseEvent";
+import WebSocketRequestEvent from "@/ecs/events/WebSocketRequestEvent";
+import { handleStartGameUniversal } from "@/ecs/scenes";
 import { useUiStore } from "@/stores";
 import { Entity, type System, type SystemResourcePartial, type World } from "@/types";
-import { CreateRoomResponseSchema, JoinRoomResponseSchema, ServerSuccessCode } from "@/types/room-manager.types";
+import { CreateRoomResponseSchema, JoinRoomResponseSchema } from "@/types/room-manager.types";
 
+/**
+ * System that handle connection by client, and send message action from client to server
+ */
 export class LobbyConnectionSystem implements System {
     update(world: World, { networkResource }: SystemResourcePartial): void {
         if (!networkResource) return;
@@ -17,6 +21,8 @@ export class LobbyConnectionSystem implements System {
             console.log("[LobbyConnectionSystem] add new LobbyStateComponent")
             return;
         };
+
+        const { transitionTo } = useUiStore.getState();
 
         const [lobbyEntity, state] = stateRes.value;
 
@@ -37,37 +43,108 @@ export class LobbyConnectionSystem implements System {
             }
         }
 
-        if (state.status === "connected" && state.pendingJoinRoomId) {
-            const roomIdToJoin = state.pendingJoinRoomId;
-            state.pendingJoinRoomId = null; // Clear it *before* sending
+        // read websocket waiting room events 
+        const events = world.readEvents(WebSocketRequestEvent);
 
-            console.log(`[LobbyConnectionSystem] Sending deferred connect for room ${roomIdToJoin}...`);
-            networkResource.sendWaitingRoomMessage({
-                type: "connect",
-                auth: networkResource.lobbyAuth, // Make sure networkResource has auth info
-                room_id: roomIdToJoin,
-            });
+        for (const event of events) {
+            switch (event.body.type) {
+                case 'leave_room':
+                    if (state.status === 'joined' && state.currentRoomId) {
+                        console.log(`[LobbySystem] Leaving room ${state.currentRoomId}...`);
+                        networkResource.sendWaitingRoomMessage({
+                            type: "leave_room",
+                            room_id: state.currentRoomId,
+                        });
 
-            // Set status to "joining" so we know we've sent the connect message
-            state.status = "joining";
-        }
+                        world.removeComponent(lobbyEntity, LobbyRoomComponent);
 
-        const leaveEvents = world.readEvents(LeaveRoomEvent);
-        for (const _ of leaveEvents) {
-            if (state.status === 'joined' && state.currentRoomId) {
-                console.log(`[LobbySystem] Leaving room ${state.currentRoomId}...`);
-                networkResource.sendWaitingRoomMessage({
-                    type: "leave_room",
-                    room_id: state.currentRoomId,
-                });
+                        // trigger transition
+                        useUiStore.getState().transitionTo({
+                            type: 'MainMenu',
+                            currentSection: 'Main',
+                            selectedButton: 'SearchForRooms',
+                            version: '1.0.0',
+                        });
+                    }
+                    state.pendingJoinRoomId = null;
+                    break;
+                case 'create_room':
+                    // Narrow the body to the create_room shape so TypeScript knows it has name/max_capacity
+                    const createBody = event.body;
 
-                world.removeComponent(lobbyEntity, LobbyRoomComponent);
+                    if (networkResource.isLobbyConnected) {
+                        console.log("[LobbyConnectionSystem] Socket already open. Sending create_room message...");
+                        networkResource.sendWaitingRoomMessage({
+                            type: 'create_room',
+                            auth: networkResource.lobbyAuth,
+                            name: createBody.name,
+                            max_capacity: createBody.max_capacity
+                        });
+                        state.status = "joining";
+                        console.log("[LobbyConnectionSystem] Transitioned to Waiting Room...");
+                        transitionTo({
+                            type: 'WaitingRoom'
+                        })
+                    } else {
+                        console.log("[LobbyConnectionSystem] Client socket never connected. Initializing connection...");
+                        const callback = () => {
+                            networkResource.sendWaitingRoomMessage({
+                                type: 'create_room',
+                                auth: networkResource.lobbyAuth,
+                                name: createBody.name,
+                                max_capacity: createBody.max_capacity
+                            });
+                            state.status = "joining";
+                            console.log("[LobbyConnectionSystem] connecting to Waiting Room...");
+                            transitionTo({
+                                type: 'WaitingRoom'
+                            })
+                        }
+                        networkResource.connectToWaitingRoom(callback);
+                    }
+                    break;
+                case 'connect':
+                    const joinBody = event.body;
+
+                    if (networkResource.isLobbyConnected) {
+                        console.log("[LobbyConnectionSystem] Socket already open. Sending connect message...");
+                        networkResource.sendWaitingRoomMessage(joinBody);
+                        state.status = "joining";
+                        console.log("[LobbyConnectionSystem] connecting to Waiting Room...");
+                        transitionTo({
+                            type: 'WaitingRoom'
+                        });
+                    } else {
+                        console.log("[LobbyConnectionSystem] WebSocket connection haven't been established. Initializing connection...");
+                        networkResource.connectToWaitingRoom(() => {
+                            networkResource.sendWaitingRoomMessage(joinBody);
+                            state.status = "joining";
+                            console.log("[LobbyConnectionSystem] connecting to Waiting Room...");
+                            transitionTo({
+                                type: 'WaitingRoom'
+                            });
+                        });
+                    }
+                    break;
+                case 'start_game':
+                    // we will trigger transition
+                    console.log("[LobbyConnectionSystem] Start the game...");
+
+                    networkResource.sendWaitingRoomMessage(event.body);
+
+                    // NOTE: the transition stage will be handle by LobbyMessageSystem
+                    break;
+                default:
+                    console.warn("[LobbyConnectionSystem] Unhandled request type");
+                    break;
             }
-            state.pendingJoinRoomId = null;
         }
     }
 }
 
+/**
+ * System that drain messages received from waiting room server, then read them, and handle them.
+ */
 export class LobbyMessageSystem implements System {
     update(world: World, { networkResource: network }: SystemResourcePartial): void {
         if (!network) {
@@ -79,12 +156,10 @@ export class LobbyMessageSystem implements System {
         if (!stateRes.some) return;
 
         // get response from RestAPIResponse Event
-
         const [lobbyEntity, state] = stateRes.value;
 
         const messages = network.drainLobbyMessageQueue();
         for (const message of messages) {
-            console.log(message);
             switch (message.type) {
                 case 'error':
                     console.error(`[LobbySystem] Error: ${message.message}`);
@@ -105,7 +180,6 @@ export class LobbyMessageSystem implements System {
                     // get the LobbyRoomComponent
                     const lobbyRoomComponentRes = world.querySingle(LobbyRoomComponent);
                     if (lobbyRoomComponentRes.some) {
-                        console.log("create new members");
                         const [lobbyRoomComponent] = lobbyRoomComponentRes.value;
                         lobbyRoomComponent.set(message);
 
@@ -134,6 +208,54 @@ export class LobbyMessageSystem implements System {
                         }
                     }
                     break;
+                case 'game_started':
+                    const loadingTask = async (world: World) => {
+                        const uiStore = useUiStore.getState();
+                        // disconnect the waiting room socket
+                        state.status = "disconnected";
+                        state.currentRoomId = null;
+                        state.pendingJoinRoomId = null;
+                        world.removeComponent(lobbyEntity, LobbyRoomComponent);
+                        // Despawn all lobby players
+                        for (const [entity, _] of world.queryWithEntity(PlayerInLobbyComponent)) {
+                            world.removeEntity(entity.id);
+                        }
+
+                        uiStore.updateCurrentState({ 'progress': 10 });
+
+                        // Connect with signaling socket
+                        network.connectToSignalingServer();
+
+                        // wait until connected
+                        try {
+                            await new Promise<void>((resolve, reject) => {
+                                const timeout = setTimeout(() => reject(new Error("Timeout connecting")), 5000);
+                                const check = setInterval(() => {
+                                    if (!network.signalingSocket || !network.signalingSocket.some) {
+                                        reject(new Error("None value of _signalingSocket"));
+                                        return;
+                                    }
+    
+                                    if (network.signalingSocket.value.readyState === WebSocket.OPEN) {
+                                        clearInterval(check);
+                                        clearTimeout(timeout);
+                                        resolve();
+                                    }
+                                }, 100);
+                            });
+                        } catch (e) {
+                            console.error("Error when checking signaling connection:", (e as Error).message);
+                            world.sendEvent(new GameErrorEvent(500, (e as Error).message))
+                            return;
+                        }
+
+                        uiStore.updateCurrentState({progress: 20});
+
+                        // TODO: Handle all initialization required for the client before entering game state
+                    };
+
+                    handleStartGameUniversal(world, loadingTask);
+                    break;
                 case 'pong':
                     break;
             }
@@ -142,109 +264,7 @@ export class LobbyMessageSystem implements System {
 }
 
 export class LobbyRestApiResponseSystem implements System {
-    update(world: World, { networkResource: network }: SystemResourcePartial): void {
-        if (!network) {
-            console.log("[LobbyRestApiSystem] No network resource available");
-            return;
-        }
+    update(_world: World): void {
 
-        const stateRes = world.querySingle(LobbyStateComponent);
-        if (!stateRes.some) {
-            console.error("[LobbyRestApiSystem] No LobbyStateComponent found!");
-            return; 
-        }
-        const [state] = stateRes.value;
-
-        const { transitionTo, setError } = useUiStore.getState();
-
-        // check for error event
-        const errorEvents = world.readEvents(GameErrorEvent);
-        for (const event of errorEvents) {
-            // show the error UI dialog
-            const { code, message } = event;
-            setError({ code, message })
-        }
-
-        
-
-        // read events
-        const restApiEvents = world.readEvents(RestAPIResponseEvent);
-
-        for (const event of restApiEvents) {
-            // check intended receiver of events
-            if (event.forWhom && event.forWhom.name === this.constructor.name) {
-                // read the message
-                // TODO: Add safe parse for the response, and handle it gracefully
-                if (event.response.payload) {
-                    // handle create room message
-                    const createRoomParsed = CreateRoomResponseSchema.safeParse(event.response.payload);
-                    if (createRoomParsed.success) {
-                        const { room_id, owner_id, name, max_capacity, created_at } = createRoomParsed.data
-
-                        if (network.isLobbyConnected) {
-                            // Socket is already open, send connect message immediately
-                            console.log("[LobbyRestApiSystem] Socket already open. Sending connect message...");
-                            network.sendWaitingRoomMessage({
-                                type: 'connect',
-                                auth: network.lobbyAuth,
-                                room_id: room_id
-                            });
-                            state.status = "joining";
-                        } else {
-                            // Socket is closed, set pending ID and let ConnectionSystem handle it
-                            console.log("[LobbyRestApiSystem] Socket closed. Setting pendingJoinRoomId...");
-                            state.pendingJoinRoomId = room_id;
-                            network.connectToWaitingRoom();
-                        }
-
-                        // try to connect to the 
-                        // change the value of waiting room system
-                        transitionTo({
-                            type: 'WaitingRoom',
-                            roomId: room_id,
-                            ownerId: owner_id,
-                            name,
-                            maxCapacity: max_capacity,
-                            createdAt: created_at.toISOString(),
-                            members: [owner_id]
-                        })
-                        return;
-                    }
-
-                    // handle join room event
-                    const joinRoomParsed = JoinRoomResponseSchema.safeParse(event.response.payload);
-                    if (joinRoomParsed.success) {
-                        const { room_id, owner_id, name, max_capacity, created_at, members } = joinRoomParsed.data;
-
-                        if (network.isLobbyConnected) {
-                            // Socket is already open, send connect message immediately
-                            console.log("[LobbyRestApiSystem] Socket already open. Sending connect message...");
-                            network.sendWaitingRoomMessage({
-                                type: 'connect',
-                                auth: network.lobbyAuth,
-                                room_id: room_id
-                            });
-                            state.status = "joining";
-                        } else {
-                            // Socket is closed, set pending ID and let ConnectionSystem handle it
-                            console.log("[LobbyRestApiSystem] Socket closed. Setting pendingJoinRoomId...");
-                            state.pendingJoinRoomId = room_id;
-                            network.connectToWaitingRoom();
-                        }
-                        
-                        transitionTo({
-                            type: 'WaitingRoom',
-                            roomId: room_id,
-                            ownerId: owner_id,
-                            name,
-                            maxCapacity: max_capacity,
-                            createdAt: created_at.toISOString(),
-                            members
-                        });
-                        return;
-                    }
-                }
-            }
-        }
     }
 }

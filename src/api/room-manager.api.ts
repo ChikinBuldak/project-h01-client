@@ -57,6 +57,11 @@ export const RoomManagerAPIHandler = {
     getAllRooms() {
         return getAllRooms();
     },
+    /**
+     * @deprecated
+     * @param req 
+     * @returns 
+     */
     async createRoom(req: CreateRoomRequest): Promise<Result<YourAverageHTTPResponse<CreateRoomResponse>, HTTPResponseError>> {
         try {
             const response = await fetch(`${ROOM_MANAGER_URL}/.proxy/api/activity/rooms`, {
@@ -106,6 +111,11 @@ export const RoomManagerAPIHandler = {
             });
         }
     },
+    /**
+     * @deprecated
+     * @param req 
+     * @returns 
+     */
     async joinRoom(req: JoinRoomRequest): Promise<Result<YourAverageHTTPResponse<JoinRoomResponse>, HTTPResponseError>> {
         try {
             const response = await fetch(`${ROOM_MANAGER_URL}/.proxy/api/activity/rooms/join`, {

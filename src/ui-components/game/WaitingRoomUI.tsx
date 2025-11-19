@@ -1,8 +1,6 @@
-import { useWaitingRoomSocket } from "@/hooks/waiting-room.hooks";
 import { useUiStore, type WaitingRoomUiState } from "@/stores";
 import { useWaitingRoomStore } from "@/stores/waiting-room.store";
 import { useEffect, type FC } from "react";
-import { shallow } from "zustand/shallow";
 
 const WaitingRoomUI: FC<{ state: WaitingRoomUiState }> = ({ state }) => {
 
@@ -14,10 +12,19 @@ const WaitingRoomUI: FC<{ state: WaitingRoomUiState }> = ({ state }) => {
 
     const handleLeave = () => {
         // Let ECS handle cleanup & transition
-        sendIntent({ type: "LeaveRoom" });
+        if (!currentRoom || currentRoom === null) {
+            console.warn("You are not inside a room");
+            return;
+        }
+        sendIntent({ type: "LeaveRoom", payload: {room_id: currentRoom.room_id} });
     };
     const handleStartGame = () => {
+        if (!currentRoom || currentRoom === null) {
+            console.warn("You are not inside a room");
+            return;
+        }
 
+        sendIntent({type: 'StartGame'})
     }
 
     const renderStatus = () => {

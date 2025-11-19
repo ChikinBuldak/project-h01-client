@@ -1,11 +1,10 @@
 import type { Resource, System, SystemCtor, World } from "../../types/ecs";
-import { parseServerMessage, SignalMessage, type ClientMessage, type PlayerInput, type ServerMessage } from "../../types/network";
+import { parseServerMessage, SignalMessage, type ClientMessage, type ServerMessage } from "../../types/network";
 import { isNone, isSome, none, some, unwrapOpt } from '../../types/option';
-import { err, isErr, isOk, ok, tryCatch, type Ok, type Result } from "../../types/result";
+import { isErr, isOk, tryCatch, type Result } from "../../types/result";
 import type { Option } from "../../types/option";
 import { registerResource } from "@/utils/registry/resource.registry";
-import type { WaitingRoomUiState } from "@/stores";
-import type { LobbyClientMessage, RoomResponsePayload } from "@/types/room-manager.types";
+import type { LobbyClientMessage } from "@/types/room-manager.types";
 import { ServerMessageSchema as LobbyServerMessageSchema, type ServerMessage as LobbyServerMessage, type WsAuthRequest } from '../../types/room-manager.types';
 import type { HTTPResponseError, YourAverageHTTPResponse } from "@/types/http";
 import { RestAPIResponseEvent } from "../events/RestAPIResponseEvent";
@@ -59,9 +58,14 @@ export class NetworkResource implements Resource {
     private _waitingRoomSocket: Option<WebSocket> = none;
     private _waitingRoomUrl: string;
     private _lobbyAuth: WsAuthRequest;
+    private _heartbeatInterval: number | null = null;
 
     get lobbyAuth(): WsAuthRequest {
         return this._lobbyAuth;
+    }
+
+    get signalingSocket() {
+        return this._signalingSocket
     }
 
     constructor(signalingUrl: string,
@@ -93,11 +97,13 @@ export class NetworkResource implements Resource {
     /**
      * Attempts to connect to the WebSocket server.
      */
-    private connectToSignalingServer(url: string) {
+    public connectToSignalingServer() {
         if (isSome(this._signalingSocket)) {
             console.warn("[NetworkResource] Already connected or connecting.");
             return;
         }
+        
+        const url = this._signalingUrl;
 
         const connectResult = tryCatch(() => new WebSocket(url));
         if (isErr(connectResult)) {
@@ -263,7 +269,7 @@ export class NetworkResource implements Resource {
             this.initPeerConnection();
         }
 
-        const pc = unwrapOpt(this._peerConnection)!; // We ensure it's set
+        const pc = this._peerConnection.unwrap();
 
         try {
             switch (message.type) {
@@ -367,7 +373,7 @@ export class NetworkResource implements Resource {
     /// ====================Waiting ROOM API=================================
     // ========================================================================
 
-    public connectToWaitingRoom() {
+    public connectToWaitingRoom(onOpenCallback?: () => void) {
         if (isSome(this._waitingRoomSocket) || this.isLobbyConnecting) {
             console.warn("[NetworkResource] Already connected or connecting to Waiting Room.");
             return;
@@ -385,7 +391,11 @@ export class NetworkResource implements Resource {
         this._waitingRoomSocket = some(ws);
         console.log(`[NetworkResource] Connecting to Waiting Room ${this._waitingRoomUrl}...`);
 
-        ws.onopen = this.handleWaitingRoomOpen;
+        ws.onopen = (_event: Event) => {
+            this.handleWaitingRoomOpen();
+            onOpenCallback?.();
+
+        };
         ws.onmessage = this.handleWaitingRoomMessage;
         ws.onclose = this.handleWaitingRoomClose;
         ws.onerror = this.handleWaitingRoomError;
@@ -395,6 +405,24 @@ export class NetworkResource implements Resource {
         console.log("[NetworkResource] Waiting Room socket connected.");
         this.isLobbyConnecting = false;
         this.isLobbyConnected = true;
+
+        // Clear any old interval just in case
+        if (this._heartbeatInterval) {
+            clearInterval(this._heartbeatInterval);
+        }
+
+        // Start a new one. Send a ping every 25 seconds.
+        this._heartbeatInterval = window.setInterval(() => {
+            // Check if the socket is still open before sending
+            if (
+                isSome(this._waitingRoomSocket) &&
+                this._waitingRoomSocket.value.readyState === WebSocket.OPEN
+            ) {
+                console.log("[Heartbeat] Sending ping");
+                // Assuming sendWaitingRoomMessage handles stringifying
+                this.sendWaitingRoomMessage({ type: "ping" });
+            }
+        }, 25000);
     };
 
     private handleWaitingRoomMessage = (event: MessageEvent) => {
@@ -403,8 +431,6 @@ export class NetworkResource implements Resource {
             console.error("[NetworkResource] Failed to parse lobby message JSON:", parseResult.error);
             return;
         }
-
-        console.log(parseResult.value);
 
         const messageResult = parseLobbyServerMessage(parseResult.value);
         if (!messageResult.success) {
@@ -474,10 +500,10 @@ export class NetworkResource implements Resource {
      * @param forWhom To label what instances this message is intended for
      * @returns 
      */
-    static async sendHTTPRequest<TargetSystem extends System, PayloadType>(world: World, handler: () => Promise<Result<YourAverageHTTPResponse<PayloadType>, HTTPResponseError>>, forWhom?: SystemCtor<TargetSystem> ) {
+    static async sendHTTPRequest<TargetSystem extends System, PayloadType>(world: World, handler: () => Promise<Result<YourAverageHTTPResponse<PayloadType>, HTTPResponseError>>, forWhom?: SystemCtor<TargetSystem>) {
         let result = await handler();
         if (result.isErr()) {
-            const {statusCode, message} = result.unwrap()
+            const { statusCode, message } = result.unwrap()
             world.sendEvent(new GameErrorEvent(statusCode, message));
             return;
         }

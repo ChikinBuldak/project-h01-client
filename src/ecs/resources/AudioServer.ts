@@ -1,10 +1,11 @@
-import { isErr, tryCatch, tryCatchAsync, type Audio } from '@/types';
+import { isErr, tryCatch, type Audio } from '@/types';
 import type { Resource } from '../../types/ecs';
-import { registerResource } from '@/utils/registry/resource.registry';
+import { resource } from '@/utils/decorators/resource.decorator';
 
 /**
  * A resource for handling audio player
  */
+@resource("audioServer")
 export class AudioServer implements Resource {
     private context: AudioContext | null = null;
     private buffers = new Map<string, AudioBuffer>();
@@ -223,7 +224,6 @@ function collectAudioUrlsTyped<T extends Record<string, any>>(obj: T): string[] 
   );
 }
 
-registerResource("audioServer", AudioServer);
 declare module "@/utils/registry/resource.registry" {
     interface ResourceRegistry {
         audioServer: AudioServer;

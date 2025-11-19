@@ -1,29 +1,30 @@
-import { NetworkResource, type NetworkDiscordJoinData } from '../../src/ecs/resources';
+import { NetworkResource} from '../../src/ecs/resources';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 let network: NetworkResource;
-const SIGNALING_URL = "ws://127.0.0.1:3001/ws";
+const SIGNALING_URL = "ws://127.0.0.1:3000/ws";
+const WAITING_ROOM_URL = "ws://127.0.0.1:3001/ws";
 
 describe("NetworkResource <-> Signaling Server Integration", () => {
     beforeAll(async () => {
-        const joinData: NetworkDiscordJoinData = {
-            guildId: "test_guild",
-            channelId: "test_channel",
-            userId: "1234",
+        const joinData = {
+            userId: "general-12345678",
         };
 
-        network = new NetworkResource(SIGNALING_URL, joinData);
+        network = new NetworkResource(SIGNALING_URL, WAITING_ROOM_URL, joinData);
+
+        network.connectToSignalingServer();
 
         // Wait until connected
         await new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => reject(new Error("Timeout connecting")), 5000);
             const check = setInterval(() => {
-                if (!network["_signalingSocket"] || !network["_signalingSocket"].some) {
+                if (!network.signalingSocket || !network.signalingSocket.some) {
                     reject(new Error("None value of _signalingSocket"));
                     return;
                 }
 
-                if (network["_signalingSocket"].value.readyState === WebSocket.OPEN) {
+                if (network.signalingSocket.value.readyState === WebSocket.OPEN) {
                     clearInterval(check);
                     clearTimeout(timeout);
                     resolve();
@@ -38,10 +39,10 @@ describe("NetworkResource <-> Signaling Server Integration", () => {
 
     it("should handle server create-offer message correctly", async () => {
         const msg = JSON.stringify({ type: 'create-offer' });
-        if (!network["_signalingSocket"] || !network["_signalingSocket"].some) {
+        if (!network.signalingSocket || !network.signalingSocket.some) {
             throw new Error("None value of _signalingSocket")
         }
-        network["_signalingSocket"].value.dispatchEvent(new MessageEvent("message", { data: msg }));
+        network.signalingSocket.value.dispatchEvent(new MessageEvent("message", { data: msg }));
 
         // Give time for async handler
         await new Promise((r) => setTimeout(r, 100));

@@ -115,7 +115,7 @@ export const GeneralAuthSchema = z.object({
     type: z.literal('General'),
     user_id: z.string()
 })
-export const AuthSchema  = z.discriminatedUnion('type', [
+export const AuthSchema = z.discriminatedUnion('type', [
     DiscordAuthSchema,
     GeneralAuthSchema
 ]);
@@ -123,16 +123,14 @@ export const AuthSchema  = z.discriminatedUnion('type', [
 export type AuthType = z.infer<typeof AuthSchema>;
 
 export interface WsCreateRoomRequest {
-    user_id: string;
-    room_id: string;
     name: string;
-    created_at: string; // ISO 8601 string
+    auth: AuthType;
     max_capacity: number;
 }
 
-export const ClientMessageSchema = RoomManagerPayloadSchema;
+export const RoomClientMessageSchema = RoomManagerPayloadSchema;
 
-export type ClientMessage = RoomManagerPayload;
+export type RoomClientMessage = RoomManagerPayload;
 
 export const ServerMessageSchema = z.discriminatedUnion('type', [
     z.object({
@@ -150,26 +148,55 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('pong'),
     }),
+    z.object({
+        type: z.literal('game_started'),
+        room_id: z.string()
+    })
 ]);
 
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;
 
 /// CLIENT MESSAGE
 
-// Based on ClientMessage from types.rs
+// Based on ClientMessage from types.rs in the waiting room server
+export const LobbyClientConnectSchema = z.object({
+    type: z.literal('connect'),
+    auth: AuthSchema,
+    room_id: z.string()
+});
+
+export type LobbyClientConnect = z.infer<typeof LobbyClientConnectSchema>;
+
+export const LobbyClientCreateRoomSchema = z.object({
+    type: z.literal('create_room'),
+    auth: AuthSchema,
+    name: z.string(),
+    max_capacity: z.number()
+});
+export type LobbyClientCreateRoom = z.infer<typeof LobbyClientCreateRoomSchema>;
+
+export const LobbyClientLeaveRoomSchema = z.object({
+    type: z.literal('leave_room'),
+    room_id: z.string(),
+});
+export type LobbyClientLeaveRoom = z.infer<typeof LobbyClientLeaveRoomSchema>;
+
+export const LobbyClientStartGameSchema = z.object({
+    type: z.literal('start_game')
+});
+export type LobbyClientStartGame = z.infer<typeof LobbyClientStartGameSchema>;
+
+export const LobbyClientPingSchema = z.object({
+    type: z.literal('ping')
+});
+export type LobbyClientPing = z.infer<typeof LobbyClientPingSchema>
+
 export const LobbyClientMessageSchema = z.union([
-    z.object({
-        type: z.literal('connect'),
-        auth: AuthSchema,
-        room_id: z.string()
-    }),
-    z.object({
-        type: z.literal('leave_room'),
-        room_id: z.string(),
-    }),
-    z.object({
-        type: z.literal('ping'),
-    })
+    LobbyClientConnectSchema,
+    LobbyClientCreateRoomSchema,
+    LobbyClientLeaveRoomSchema,
+    LobbyClientPingSchema,
+    LobbyClientStartGameSchema
 ]);
 export type LobbyClientMessage = z.infer<typeof LobbyClientMessageSchema>;
 
@@ -209,7 +236,7 @@ export const JoinRoomResponseSchema = z.object({
 export type JoinRoomResponse = z.infer<typeof JoinRoomResponseSchema>;
 
 export const JoinRoomRequestSchema = z.object({
-    user_id: z.string(),
+    auth: AuthSchema,
     room_id: z.string()
 })
 

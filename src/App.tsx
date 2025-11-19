@@ -26,7 +26,7 @@ if (frameId) {
 	discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
 } else {
 	// This is useful for debugging in the browser
-	console.warn("Not in Discord iframe (no frame_id). SDK will not be initialized.");
+	console.warn("[App] Not in Discord iframe (no frame_id). SDK will not be initialized.");
 }
 
 function TestPage() {

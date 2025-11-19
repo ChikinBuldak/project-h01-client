@@ -11,6 +11,7 @@ import { PlayerLifecycleSystem } from '../systems/core';
 import { InterpolationSystem } from '../systems/network/InterpolationSystem';
 import { Despawn } from '../components';
 import AudioRequestEvent from '../events/AudioRequestEvent';
+import { LobbyStateComponent } from '../components/network/lobby-room.component';
 
 export class InGameScene implements AppScene {
     private entityInterval: Undefinable<IInterval>;
@@ -72,6 +73,8 @@ export class InGameScene implements AppScene {
             audioServerOpt.value.softClear();
         }
         for (const entity of world.getEntities()) {
+            // do not delete the LobbyStateComponent
+            if (entity.getComponent(LobbyStateComponent).isSome()) continue;
             entity.addComponent(new Despawn());
         }
         world.removeSystem(InGameInputSystem);

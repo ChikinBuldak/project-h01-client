@@ -188,8 +188,7 @@ export type PeerType = z.infer<typeof PeerType>;
 
 // Base schemas for common fields
 const baseRoomSchema = z.object({
-  guild_id: z.string(),
-  channel_id: z.string(),
+  room_id: z.string()
 });
 
 const basePeerMessageSchema = baseRoomSchema.extend({
@@ -198,10 +197,8 @@ const basePeerMessageSchema = baseRoomSchema.extend({
 });
 
 // Individual message schemas
-export const JoinMessage = z.object({
+export const JoinMessage = baseRoomSchema.extend({
   type: z.literal('join'),
-  guild_id: z.string(),
-  channel_id: z.string(),
   peer_type: PeerType,
   user_id: z.string(),
 });

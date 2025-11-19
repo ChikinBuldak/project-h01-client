@@ -2,7 +2,7 @@
 
 import type { InGameStateType } from "@/ecs/components/scenes/InGameStateComponent";
 import type { World } from "@/types";
-import type { HandleJoinRoomPayloadType } from "@/utils/handlers/main-menu.handlers";
+import type { LobbyClientConnect, LobbyClientCreateRoom, LobbyClientLeaveRoom } from "@/types/room-manager.types";
 
 // Data for the Main Menu
 export interface MainMenuUiState {
@@ -26,12 +26,6 @@ export interface LoadingUiState {
 
 export interface WaitingRoomUiState {
   type: 'WaitingRoom';
-  roomId: string; // The room we are trying to join
-  ownerId: string;
-  members: string[];
-  name: string;
-  maxCapacity: number;
-  createdAt: string;
 }
 
 // A discriminated union of all possible UI states
@@ -51,8 +45,8 @@ export interface IntentMap  {
   'Options': void;
   'SearchForRooms': void;
   'BackToMainMenu': void;
-  'CreateRoom': HandleJoinRoomPayloadType;
-  "JoinRoom": { roomId: string };
+  'CreateRoom': Pick<LobbyClientCreateRoom, 'name' | 'max_capacity'>;
+  "JoinRoom": Pick<LobbyClientConnect, 'room_id'>;
   
   
   // In-Game Intents
@@ -60,7 +54,7 @@ export interface IntentMap  {
   'ExitToMenu': void;
 
   // Waiting Room Intents
-  'LeaveRoom': void;
+  'LeaveRoom': Pick<LobbyClientLeaveRoom, 'room_id'>;
   'StartGame': void;
 }
 
@@ -72,4 +66,10 @@ export type UserIntent = {
 
 export type IntentState = UserIntent | null;
 
-export type IntentHandler = (world: World, payload?: any) => void;
+export type IntentHandlerMap = {
+  [K in keyof IntentMap]: IntentMap[K] extends void
+    ? (world: World) => void
+    : (world: World, payload: IntentMap[K]) => void;
+};
+
+export type IntentHandler = IntentHandlerMap[keyof IntentMap];

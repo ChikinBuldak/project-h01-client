@@ -1,46 +1,28 @@
-import { AppStateResource, NetworkResource } from "@/ecs/resources";
-import { InGameScene, LoadingScene } from "@/ecs/scenes";
+// src/utils/handlers/main-menu.handlers.ts
+
+import { NetworkResource } from "@/ecs/resources";
+import { handleStartGameUniversal } from "@/ecs/scenes";
 import type { UiIntentSystem } from "@/ecs/systems/render/ui/UiIntentSystem";
 import { useUiStore, type MainMenuUiState } from "@/stores";
-import { isSome, unwrapOpt, type World } from "@/types";
-import type { AuthType, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse } from '../../types/room-manager.types';
+import { type World } from "@/types";
+import type { LobbyClientConnect, LobbyClientCreateRoom, LobbyClientLeaveRoom } from '@/types/room-manager.types';
 import { LobbyStateComponent } from "@/ecs/components/network/lobby-room.component";
-import { LeaveRoomEvent } from "@/ecs/events/LobbyEvent";
-import { createNewRoom, RoomManagerAPIHandler } from "@/api/room-manager.api";
-import { LobbyRestApiResponseSystem } from "@/ecs/systems/network/lobby-connection.system";
-import { err, ok } from '../../types/result';
-
-// ============ INTERNAL TYPES =========================
-export type HandleJoinRoomPayloadType = {
-    name: string, capacity: number
-}
-
+import { createNewRoom } from "@/api/room-manager.api";
+import WebSocketRequestEvent from "@/ecs/events/WebSocketRequestEvent";
+import { type LobbyClientMessage } from '@/types/room-manager.types';
 
 // ====================== HANDLER FUNCTIONS =============================
 
 function handleStartGame(world: World): void {
-    const appStateOpt = world.getResource(AppStateResource);
-
-    if (isSome(appStateOpt)) {
-        console.log("UI intent 'Start' received, transitioning to LoadingState.");
-
-        const loadInGameTask = async (_: World) => {
-            console.log("Running In-Game loading task...");
-            await new Promise(res => setTimeout(res, 500)); // 0.5s fake load
-            console.log("In-Game loading task complete.");
-        };
-
-        const loadingState = new LoadingScene(
-            new InGameScene(),  // The state to go to *after*
-            loadInGameTask,     // The async task to run
-            'Loading Game...'   // The message to show
-        );
-
-        unwrapOpt(appStateOpt).scheduleTransition(loadingState);
-
-    } else {
-        console.error("AppStateResource not found! Cannot change state.");
+    // we send event to the WebSocketRequestEvent, and then just stop. the scene transition
+    // will be handled by LobbyConnectionSystem
+    const networkResource = world.getResource(NetworkResource);
+    if (networkResource.isSome()) {
+        world.deferEvent(new WebSocketRequestEvent({ type: 'start_game' }));
+        return;
     }
+    
+    handleStartGameUniversal(world);
 }
 
 function handleSearchForRooms(_world: World): void {
@@ -69,13 +51,13 @@ function handleBackToMainMenu(_world: World): void {
         const newState: MainMenuUiState = {
             ...state,
             currentSection: 'Main',
-            selectedButton: 'SearchForRooms', // Select the button we came from
+            selectedButton: 'SearchForRooms',
         };
         transitionTo(newState);
     }
 }
 
-function handleCreateRoom(world: World, payload: HandleJoinRoomPayloadType) {
+function handleCreateRoom(world: World, payload: Pick<LobbyClientCreateRoom, 'name' | 'max_capacity'>) {
     const networkRes = world.getResource(NetworkResource);
     if (networkRes.isNone()) {
         console.error("NetworkResource not found! Cannot join room.");
@@ -87,52 +69,44 @@ function handleCreateRoom(world: World, payload: HandleJoinRoomPayloadType) {
         return;
     }
 
-    const {name, capacity} = payload;
+    const { name, max_capacity } = payload;
 
     const authType = networkRes.unwrap().lobbyAuth
 
-    const createRoomRequestBody = createNewRoom(authType, name, capacity);
+    const createRoomRequestBody = createNewRoom(authType, name, max_capacity);
 
-    NetworkResource.sendHTTPRequest<LobbyRestApiResponseSystem, CreateRoomResponse>(world, async () => {
-        const result = await RoomManagerAPIHandler.createRoom(createRoomRequestBody);
-        return result.isOk() ? ok(result.unwrap()) : err(result.unwrap());
-    }, LobbyRestApiResponseSystem)
-    .then(() => console.log("Create room request is successful"))
-    .catch((e) => console.error("Error when creating room:", e))
-
+    world.sendEvent(new WebSocketRequestEvent(createRoomRequestBody));
 }
 
-function handleJoinRoom(world: World, payload: JoinRoomRequest): void {
+function handleJoinRoom(world: World, payload: Pick<LobbyClientConnect, 'room_id'>): void {
     const networkRes = world.getResource(NetworkResource);
     if (!networkRes.some) {
         console.error("NetworkResource not found! Cannot join room.");
         return;
     }
-
     const lobbyStateRes = world.querySingle(LobbyStateComponent);
     if (!lobbyStateRes.some) {
         console.error("LobbyStateComponent not found! Cannot join room.");
         return;
     }
-    
-    NetworkResource.sendHTTPRequest<LobbyRestApiResponseSystem, JoinRoomResponse>(world, async () => {
-        const result = await RoomManagerAPIHandler.joinRoom(payload);
-        return result.isOk() ? ok(result.unwrap()) : err(result.unwrap());
-    }, LobbyRestApiResponseSystem).then(()=>console.log("Join room request is successful")).catch((e)=> console.error("Error when joining room:", e))
+    const auth = networkRes.unwrap().lobbyAuth;
+
+    const properPayload: LobbyClientMessage = {
+        room_id: payload.room_id,
+        auth,
+        type: 'connect'
+    }
+
+    // Send WebSocketRequestEvent that can be read by the Lobby Connection System
+    world.sendEvent(new WebSocketRequestEvent(properPayload));
 }
 
-function handleLeaveRoom(world: World): void {
-    // The LobbyConnectionSystem will find this, send the network message,
-    // and the server will close the connection.
-    world.sendEvent(new LeaveRoomEvent());
-
-    // Transition the UI back to the main menu
-    useUiStore.getState().transitionTo({
-        type: 'MainMenu',
-        currentSection: 'Main',
-        selectedButton: 'SearchForRooms',
-        version: '1.0.0',
-    });
+function handleLeaveRoom(world: World, payload: Pick<LobbyClientLeaveRoom, 'room_id'>): void {
+    const truePayload: LobbyClientLeaveRoom = {
+        type: 'leave_room',
+        room_id: payload.room_id
+    };
+    world.sendEvent(new WebSocketRequestEvent(truePayload));
 };
 
 /**

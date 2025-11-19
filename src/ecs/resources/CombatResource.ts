@@ -1,12 +1,13 @@
 import { RedCombatAction } from "@/game-components/combat/RedCombatAction";
 import type { ICombatAction } from "@/interfaces/combat/ICombatAction";
 import type { Resource } from "@/types";
-import { registerResource } from "@/utils/registry/resource.registry";
+import { resource } from "@/utils/decorators/resource.decorator";
 
 /**
  * A resource for combat mechanism. it stores map of character
  * to their respective combat action
  */
+@resource("combatResource");
 export class CombatResource implements Resource {
     public combatResources = new Map<string, ICombatAction>();
 
@@ -19,7 +20,6 @@ export class CombatResource implements Resource {
     }
 }
 
-registerResource("combatResource", CombatResource);
 declare module "@/utils/registry/resource.registry" {
   interface ResourceRegistry {
     combatResource: CombatResource;
