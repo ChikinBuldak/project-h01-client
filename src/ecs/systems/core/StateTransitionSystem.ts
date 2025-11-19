@@ -1,4 +1,4 @@
-import { CurrentState, NextState } from "@/ecs/resources/state";
+import { CurrentState, NextState } from "@/ecs/resources/state.resource";
 import { isNone, type System, type World } from "@/types";
 
 export class StateTransitionSystem implements System {

@@ -84,6 +84,13 @@ export class DomRenderSystem implements System {
 
         if (isNone(domRes)) return;
         const dom = domRes.value;
+
+        if (!dom.worldElement) {
+            // The resource is invalid (e.g., it was re-created).
+            // Force re-initialization on the next frame.
+            this.isInitialized = false; 
+            return; // Exit this render frame.
+        }
         const assetServer = isSome(assetRes) ? assetRes.value : null;
 
         this.updateCamera(world, dom);

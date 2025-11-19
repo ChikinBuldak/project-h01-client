@@ -1,13 +1,21 @@
 /** Represents a successful operation with a value T. */
-export type Ok<T> = {
+export interface Ok<T> {
     readonly ok: true;
     readonly value: T;
+    isOk(): this is Ok<T>;
+    isErr(): this is Err<never>;
+
+    unwrap(): T;
 };
 
 /** Represents a failed operation with an error E. */
-export type Err<E> = {
+export interface Err<E> {
     readonly ok: false;
     readonly error: E;
+    isOk(): this is Ok<never>;
+    isErr(): this is Err<E>;
+
+    unwrap(): E;
 };
 
 /**
@@ -16,8 +24,30 @@ export type Err<E> = {
  */
 export type Result<T, E> = Ok<T> | Err<E>;
 
-export const ok = <T, E = unknown>(value: T): Result<T, E> => ({ ok: true, value });
-export const err = <T = unknown, E = unknown>(error: E): Result<T, E> => ({ ok: false, error });
+export const ok = <T, E = unknown>(value: T): Result<T, E> => ({
+    ok: true,
+    value,
+    isOk():  this is Ok<T>{return true},
+    isErr(): this is Err<never>{return false},
+    unwrap() {
+        return this.value
+    },
+
+
+});
+export const err = <T = unknown, E = unknown>(error: E): Result<T, E> => ({ 
+    ok: false, 
+    error,
+    isOk(): this is Ok<never>{return false},
+    isErr(): this is Err<E>{return true},
+    unwrap() {
+        if (this.error instanceof Error) {
+            throw this.error;
+        }
+
+        return this.error;
+    },
+});
 
 /** Checks if the Result is the Ok variant. */
 export const isOk = <T, E>(result: Result<T, E>): result is Ok<T> => result.ok;
@@ -97,7 +127,7 @@ export const unwrapOrRes = <T, E>(result: Result<T, E>, defaultValue: T): T => {
 };
 
 export const unwrapOrElseRes = <T, E>(r: Result<T, E>, fn: (e: E) => T): T =>
-  isOk(r) ? r.value : fn(r.error);
+    isOk(r) ? r.value : fn(r.error);
 
 export const matchOk = <T, E>(result: Result<T, E>): { value: T } | undefined => {
     if (isOk(result)) {
@@ -133,20 +163,20 @@ export function tryCatch<T, E = Error>(
         return ok<T, E>(value);
     } catch (e) {
         // The error type is inferred from the function's type parameter E.
-        return err<T, E>(e as E); 
+        return err<T, E>(e as E);
     }
 }
 
 export const tryCatchAsync = async <T, E = unknown>(
-  fn: () => Promise<T>,
-  onError?: (error: unknown) => E
+    fn: () => Promise<T>,
+    onError?: (error: unknown) => E
 ): Promise<Result<T, E>> => {
-  try {
-    const val = await fn();
-    return ok(val);
-  } catch (e) {
-    return err(onError ? onError(e) : (e as E));
-  }
+    try {
+        const val = await fn();
+        return ok(val);
+    } catch (e) {
+        return err(onError ? onError(e) : (e as E));
+    }
 };
 
 /**
@@ -183,7 +213,7 @@ export const mapAsync = async <T, U, E>(
 }
 
 export const mapErrAsync = async <T, E, F>(
-    r: Result<T,E>,
+    r: Result<T, E>,
     fn: (e: E) => Promise<F>
 ): Promise<Result<T, F>> => {
     if (isErr(r)) {
@@ -194,12 +224,12 @@ export const mapErrAsync = async <T, E, F>(
 }
 
 export const andThenAsync = async <T, U, E>(
-  r: Result<T, E>,
-  fn: (t: T) => Promise<Result<U, E>>
+    r: Result<T, E>,
+    fn: (t: T) => Promise<Result<U, E>>
 ): Promise<Result<U, E>> => {
-  if (isOk(r)) {
-    return fn(r.value);
-  }
-  return r;
+    if (isOk(r)) {
+        return fn(r.value);
+    }
+    return r;
 };
 

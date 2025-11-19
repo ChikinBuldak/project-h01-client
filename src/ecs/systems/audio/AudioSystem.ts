@@ -1,6 +1,7 @@
 import { PlayBgm, PlaySoundEffect } from "@/ecs/components";
+import AudioRequestEvent from "@/ecs/events/AudioRequestEvent";
 import { AudioServer } from "@/ecs/resources";
-import { isNone, type System, unwrapOpt, World } from "@/types";
+import { isNone, type System, type SystemResourcePartial, unwrapOpt, World } from "@/types";
 
 
 /**
@@ -8,26 +9,23 @@ import { isNone, type System, unwrapOpt, World } from "@/types";
  * them using the AudioServer resource.
  */
 export class AudioSystem implements System {
-    update(world: World): void {
-        const audioServerRes = world.getResource(AudioServer);
-        if (isNone(audioServerRes)) return;
-        const audioServer = unwrapOpt(audioServerRes);
+    update(world: World, {audioServer}: SystemResourcePartial): void {
+        if (!audioServer) return;
 
-        // Handle one-shot audio (SFX)
-        const sfxQuery = world.queryWithEntity(PlaySoundEffect);
-        for (const [entity, soundEffect] of sfxQuery) {
-            audioServer.playSfx(soundEffect.handle);
-            // remove element because it is an event component
-            entity.removeComponent(PlaySoundEffect);
+        // Read audio events
+        const events = world.readEvents(AudioRequestEvent);
+        // console.log("Read audio events...");    
+        for (const event of events) {
+            console.log(event);
+            switch (event.audio.type) {
+                case "sfx":
+                    audioServer.playSfx(event.handle);
+                    break;
+                case "bgm":
+                    audioServer.playBgm(event.handle, event.audio.loop);
+                    break;
+
+            }
         }
-
-        // Handle BGM
-        const bgmQuery = world.queryWithEntity(PlayBgm);
-        for (const [entity, bgm] of bgmQuery) {
-            audioServer.playBgm(bgm.handle, bgm.loop);
-            // remove element because it is an event component
-            entity.removeComponent(PlayBgm);
-        }
-
     }
 }

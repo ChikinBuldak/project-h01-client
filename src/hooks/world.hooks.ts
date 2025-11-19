@@ -1,7 +1,8 @@
-import { AppStateResource } from "@/ecs/resources/state";
+import { AppStateResource } from "@/ecs/resources/state.resource";
 import { useWorldStore } from "../stores/world.store";
 import { useEffect, useRef } from "react";
 import { isSome, unwrapOpt } from "@/types";
+import { Time } from "@/ecs/resources";
 
 let SimulationHz = 60;
 export const FIXED_TIMESTEP = 1000 / SimulationHz;
@@ -14,7 +15,6 @@ export const useGameLoop = () => {
     const rafRef = useRef(0);
 
     useEffect(() => {
-        let frameId: number;
         const tick = (currentTime: number) => {
             rafRef.current = requestAnimationFrame(tick);
             const deltaTime = currentTime - lastTimeRef.current;
@@ -27,6 +27,10 @@ export const useGameLoop = () => {
             }
 
             while (accumulatorRef.current >= FIXED_TIMESTEP) {
+                const time = world.getResource(Time);
+                if (isSome(time)) {
+                    unwrapOpt(time).currentTick++;
+                }
                 world.update(FIXED_TIMESTEP);
                 accumulatorRef.current -= FIXED_TIMESTEP;
             }

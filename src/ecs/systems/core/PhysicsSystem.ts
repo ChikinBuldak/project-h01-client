@@ -1,13 +1,12 @@
 import Matter from "matter-js";
-import {type System, World} from '../../../types/ecs';
+import { type System, World, type SystemResourcePartial } from '../../../types/ecs';
 
-import { Time } from "../../resources/Time";
 import { PhysicsResource } from "../../resources/PhysicsResource";
 import { Hitbox } from "../../components/character/Hitbox";
 import { Hurtbox } from "../../components/character/Hurtbox";
 import { CollisionEvent } from "../../events/CollisionEvent";
 import { RigidBody, PlayerState, GroundCheckRay, Transform } from "@/ecs/components";
-import { isNone, isSome } from "@/types";
+import { isSome } from "@/types";
 import { Pit } from "@/ecs/components/tag";
 import { PlayerFallEvent } from "@/ecs/events/PlayerFallEvent";
 import { sendEventOnCollision } from "@/utils/event";
@@ -90,12 +89,9 @@ export class PhysicsSystem implements System {
         }
     }
 
-    update(world: World): void {
-        const timeRes = world.getResource(Time);
-        const physicsRes = world.getResource(PhysicsResource);
-        if (isNone(timeRes) || isNone(physicsRes)) return;
-        const time = timeRes.value;
-        const resource = physicsRes.value;
+    update(world: World, {time, physicsResource}: SystemResourcePartial): void {
+        if (!time || !physicsResource) return;
+        const resource = physicsResource;
         if (!this.isInitialized) {
             world.sendEvent(new LogEvent('info', "[PhysicsSystem] Initialize collision event listener"))
             this.setupEventListeners(world, resource);
@@ -105,7 +101,6 @@ export class PhysicsSystem implements System {
 
         // Run the physics engine
         Matter.Engine.update(resource.engine, time.fixedDeltaTime);
-
 
         // Sync transforms back to ECS
         const syncQuery = world.query(RigidBody, Transform);

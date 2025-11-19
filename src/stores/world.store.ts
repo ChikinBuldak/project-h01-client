@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { type Entity, World, type System, type Resource } from "../types/ecs";
 import { unwrapOpt } from '../types/option';
+import type { NetworkDiscordJoinData } from "@/ecs/resources";
+import type { AuthType } from "@/types/room-manager.types";
 
 /**
  * The state slice of the Zustand store containing the world instance
@@ -8,6 +10,7 @@ import { unwrapOpt } from '../types/option';
 interface WorldState {
   /** The single instance of the ECS World */
   world: World;
+  auth: AuthType | null;
 }
 
 /**
@@ -28,6 +31,7 @@ export interface WorldActions {
   update: (deltaTime: number) => void;
   /** Executes the *render* step for all systems in the world. */
   render: (alpha: number) => void;
+  setAuth: (data: AuthType) => void;
 }
 
 /**
@@ -37,11 +41,19 @@ export type WorldStore = WorldState & WorldActions;
 
 const initialWorld = new World();
 
+const initialDiscordData: NetworkDiscordJoinData | null = null;
+
+export function generateRandomUserId(): string {
+  return 'general-' + Math.random().toString(36).substring(2, 9);
+}
+
+const initialRandomUserId = generateRandomUserId();
 /**
  * Use the {@link WorldStore} to manage state and update
  */
 export const useWorldStore = create<WorldStore>()((set, get) => ({
   world: initialWorld,
+  auth: null,
 
   initializeWorld: () => {
     set({
@@ -84,4 +96,9 @@ export const useWorldStore = create<WorldStore>()((set, get) => ({
       world.render(alpha);
     }
   },
+
+  setAuth: (data) => {
+    set({ auth: data });
+
+  }
 }));

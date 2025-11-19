@@ -1,10 +1,8 @@
-import { Entity, isNone, isSome, unwrapOpt, type System, type World } from "@/types";
-import { Time } from "../../resources";
+import { isNone, isSome, unwrapOpt, type System, type SystemResourcePartial, type World } from "@/types";
 import { AttackRequest } from "../../components/character/AttackRequest";
-import { Mesh2D, PlayerState, RigidBody, Transform } from "../../components";
+import { PlayerState, RigidBody } from "../../components";
 import { Hitbox } from "../../components/character/Hitbox";
 import Matter from "matter-js";
-import { PhysicsResource } from "../../resources/PhysicsResource";
 import { CollisionEvent } from "../../events/CollisionEvent";
 import { Hurtbox } from "../../components/character/Hurtbox";
 import { Knockbacker } from "../../components/character/Knockbacker";
@@ -14,11 +12,9 @@ import { CombatState } from "@/ecs/components/character/combat/CombatState";
 import LogEvent from "@/ecs/events/LogEvent";
 
 export class CombatSystem implements System {
-    update(world: World): void {
-        const timeRes = world.getResource(Time);
-        const physicsRes = world.getResource(PhysicsResource);
-        if (isNone(timeRes) || isNone(physicsRes)) return;
-        const dt = unwrapOpt(timeRes).fixedDeltaTime / 1000;
+    update(world: World, {time, physicsResource}: SystemResourcePartial): void {
+        if (!time || !physicsResource) return;
+        const dt = time.fixedDeltaTime / 1000;
 
         this.tickComboTimers(world, dt);
 

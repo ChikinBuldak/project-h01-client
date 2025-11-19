@@ -6,18 +6,37 @@ import {
     CombatSystem,
     DebugRenderSystem,
 } from './systems';
-import { NetworkStateBuffer} from './components';
+import { NetworkStateBuffer } from './components';
 import { CharacterFactory } from './factories/CharacterFactory';
 import { WorldFactory } from './factories/WorldFactory';
 import { Entity, type Resource, type System } from '../types/ecs';
-import { Time} from './resources';
+import { Time } from './resources';
 import { isSome } from '@/types';
 import type { GameConfig } from '@/types/config';
 import { GarbageCollectorSystem } from './systems/others/GarbageCollectorSystem';
 import { PlayerLifecycleSystem } from './systems/core/PlayerLifecycleSystem';
 import { LogSystem } from './systems/others/LogSystem';
 import { InGameInputSystem } from './systems/core/input/InGameInputSystem';
+import { InGameStateComponent } from './components/scenes/InGameStateComponent';
+import { UiIntentSystem } from './systems/render/ui/UiIntentSystem';
+import { LobbyUiSystem } from './systems/render/ui/LobbyUiSystem';
+import { LobbyConnectionSystem, LobbyMessageSystem, LobbyRestApiResponseSystem } from './systems/network/lobby-connection.system';
+import { GlobalUiSystem } from './systems/render/ui/GlobalUiSystem';
 
+export function setupCoreSystems(
+    addSystem: (sys: System) => void
+) {
+    addSystem(new LogSystem());
+    addSystem(new AudioSystem());
+    addSystem(new GarbageCollectorSystem());
+    addSystem(new DomRenderSystem());
+    addSystem(new UiIntentSystem());
+    addSystem(new LobbyUiSystem());
+    addSystem(new LobbyMessageSystem());
+    addSystem(new LobbyConnectionSystem());
+    addSystem(new GlobalUiSystem());
+    addSystem(new LobbyRestApiResponseSystem());
+}
 /**
  * Adds all necessary resources to the world.
  */
@@ -30,22 +49,18 @@ export function setupResources(
 /**
  * Adds all necessary systems to the world.
  */
-export function setupSystems(
+export function setupInGameSystems(
     addSystem: (sys: System) => void,
     isOnline: boolean
 ) {
     // Core systems (always run)
-    addSystem(new GarbageCollectorSystem());
     addSystem(new InGameInputSystem());
     addSystem(new PlayerMovementSystem());
-    addSystem(new DomRenderSystem());
     addSystem(new PhysicsSystem());
-    addSystem(new AudioSystem());
     addSystem(new AnimationSystem());
     addSystem(new CombatSystem());
     addSystem(new DebugRenderSystem());
     addSystem(new PlayerLifecycleSystem());
-    addSystem(new LogSystem());
 
     // Online-only systems
     if (isOnline) {
@@ -59,7 +74,7 @@ export function setupSystems(
  * Spawns all initial entities into the world.
  * Returns an interval ID for the mock server if in offline mode.
  */
-export function setupEntities(
+export function setupInGameEntities(
     addEntity: (ent: Entity) => void,
     isOnline: boolean,
     config: GameConfig
@@ -97,7 +112,11 @@ export function setupEntities(
         width: config.scene.pit.width,
         height: config.scene.pit.height
     })
-    
+
+    // Add InGameStateComponent
+    addEntity(new Entity().addComponent(new InGameStateComponent()));
+
+
     console.log("Grounds added");
 
     // --- Add to World ---
@@ -128,7 +147,7 @@ export function setupEntities(
                     isGrounded: true
                 };
                 buffer.addState(serverTick++, newState);
-            }, 100) as any; // Cast to number for Node.js/Browser compatibility
+            }, 100) as any;
         }
     }
 

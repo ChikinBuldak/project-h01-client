@@ -10,7 +10,7 @@ export interface Position {
 /**
  * {@link Transform} lets you define the transform component of an entity
  */
-export class Transform implements Component, Clone<Transform>, Eq<Transform> {
+export class Transform implements Component {
     position: Position;
     /**
      * Rotation of the object (in degree)

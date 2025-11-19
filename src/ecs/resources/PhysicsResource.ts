@@ -1,5 +1,6 @@
 import Matter from "matter-js";
 import { type Resource, type Entity } from "../../types/ecs";
+import { registerResource } from "@/utils/registry/resource.registry";
 
 /**
  * A resource that holds the global Matter.js physics state.
@@ -34,4 +35,12 @@ export class PhysicsResource implements Resource {
         Matter.World.remove(this.world, body);
         this.bodyEntityMap.delete(body.id);
     }
+}
+
+registerResource("physicsResource", PhysicsResource);
+
+declare module "@/utils/registry/resource.registry" {
+  interface ResourceRegistry {
+    physicsResource: PhysicsResource;
+  }
 }
