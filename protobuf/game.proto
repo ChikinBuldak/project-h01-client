@@ -1,0 +1,84 @@
+syntax = "proto3";
+package game;
+
+// ============= CLIENT -> SERVER MESSAGES ==============
+
+message PlayerInput {
+    uint64 tick =  1;
+    float dx = 2;
+    float dy = 3;
+    bool is_jumping = 4;
+    bool is_dodging = 5;
+    bool is_attacking = 6;
+}
+
+message ClientPacket {
+    uint32 input_sequence = 1;
+    PlayerInput input = 2;
+}
+
+// ============= SERVER -> CLIENT MESSAGES ==============
+
+/**
+ * The server's main reconciliation packet for the local player.
+*/
+message PlayerState {
+    uint64 tick = 1;
+    EntityState state = 2;
+}
+
+message NonLocalPlayerState {
+    uint64 tick = 1;
+    /** ID of the entity inside the server (not inside the client) */
+    string id = 2;
+    EntityState state = 3;
+}
+
+message EntityState {
+    Transform transform = 1;
+    Vector2D velocity = 2;
+    bool is_grounded = 3;
+    bool is_invisible = 4;
+}
+
+message Transform {
+    Vector2D position = 1;
+    float rotation = 2;
+}
+
+message Vector2D {
+    float x = 1;
+    float y = 2;
+}
+
+message GameEvent {
+    oneof payload {
+        /** This is useful for overlap box 2d to detect hitbox and update the health inside client */
+        CollisionEvent collision = 1;
+        PlayerDeath death = 2;
+        StateSync sync = 3;
+    }
+}
+
+message ServerPacket {
+    uint64 tick = 1;
+    uint32 last_processed_input = 2;
+    repeated EntityState entities = 3;
+    repeated GameEvent events = 4;
+}
+
+message CollisionEvent {
+    uint32 entity_a = 1;
+    uint32 entity_b = 2;
+}
+
+message PlayerDeath {
+    uint32 dead_entity_id = 1;
+    uint32 killer_entity_id = 2;
+}
+
+// Use this mainly for initial sync to map uint32 ID -> User UUID/Name
+message StateSync {
+    uint32 network_id = 1;
+    string user_uuid = 2;
+}

@@ -1,11 +1,9 @@
 import { LobbyRoomComponent, LobbyStateComponent, PlayerInLobbyComponent } from "@/ecs/components/network/lobby-room.component";
 import { GameErrorEvent } from "@/ecs/events/ErrorEvent";
-import { RestAPIResponseEvent } from "@/ecs/events/RestAPIResponseEvent";
 import WebSocketRequestEvent from "@/ecs/events/WebSocketRequestEvent";
 import { handleStartGameUniversal } from "@/ecs/scenes";
 import { useUiStore } from "@/stores";
 import { Entity, type System, type SystemResourcePartial, type World } from "@/types";
-import { CreateRoomResponseSchema, JoinRoomResponseSchema } from "@/types/room-manager.types";
 
 /**
  * System that handle connection by client, and send message action from client to server
@@ -229,7 +227,7 @@ export class LobbyMessageSystem implements System {
                         // wait until connected
                         try {
                             await new Promise<void>((resolve, reject) => {
-                                const timeout = setTimeout(() => reject(new Error("Timeout connecting")), 5000);
+                                const timeout = setTimeout(() => reject(new Error("Timeout connecting")), 10000);
                                 const check = setInterval(() => {
                                     if (!network.signalingSocket || !network.signalingSocket.some) {
                                         reject(new Error("None value of _signalingSocket"));
@@ -251,7 +249,7 @@ export class LobbyMessageSystem implements System {
 
                         uiStore.updateCurrentState({progress: 20});
 
-                        // TODO: Handle all initialization required for the client before entering game state
+                        // TODO: Handle all initialization required for the client before entering InGameScene
                     };
 
                     handleStartGameUniversal(world, loadingTask);
